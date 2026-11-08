@@ -1,0 +1,131 @@
+name: Compilar y publicar
+
+on:
+  push:
+    branches: [main, master, 'claude/**']
+    paths-ignore: ['**.md']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: compilar-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: 3.47.9
+  APP_VERSION: 1.0.${{ github.run_number }}
+
+jobs:
+  android:
+    name: Android (.apk)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Descargar dependencias
+        run: flutter pub get
+
+      - name: Analizar código
+        run: flutter analyze --no-fatal-infos
+
+      - name: Pruebas
+        run: flutter test
+
+      - name: Compilar APK
+        run: flutter build apk --release --build-name=${{ env.APP_VERSION }} --build-number=${{ github.run_number }}
+
+      - name: Preparar archivo
+        run: |
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/app-release.apk dist/mi-iptv-android.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: dist/mi-iptv-android.apk
+          retention-days: 7
+
+  windows:
+    name: Windows (.exe y .zip)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Descargar dependencias
+        run: flutter pub get
+
+      - name: Compilar Windows
+        run: flutter build windows --release --build-name=${{ env.APP_VERSION }} --build-number=${{ github.run_number }}
+
+      - name: Crear ZIP portable
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath dist\mi-iptv-windows-portable.zip
+
+      - name: Crear instalador
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) {
+            choco install innosetup -y --no-progress
+          }
+          & $iscc "/DAppVersion=${{ env.APP_VERSION }}" installer\mi-iptv.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: |
+            dist/mi-iptv-windows-portable.zip
+            dist/mi-iptv-windows-instalador.exe
+          retention-days: 7
+
+  publicar:
+    name: Publicar en Releases
+    needs: [android, windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.APP_VERSION }}
+          target_commitish: ${{ github.sha }}
+          name: Mi IPTV ${{ env.APP_VERSION }}
+          make_latest: true
+          body: |
+            Versión ${{ env.APP_VERSION }} compilada automáticamente.
+
+            **Windows**
+            - `mi-iptv-windows-instalador.exe`: instalador (recomendado).
+            - `mi-iptv-windows-portable.zip`: versión sin instalación (descomprimir y abrir `mi_iptv.exe`).
+
+            **Android**
+            - `mi-iptv-android.apk`: abrir en el móvil para instalar.
+          files: |
+            dist/mi-iptv-android.apk
+            dist/mi-iptv-windows-portable.zip
+            dist/mi-iptv-windows-instalador.exe
