@@ -22,9 +22,9 @@ jobs:
     name: Android (.apk)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -44,7 +44,21 @@ jobs:
       - name: Pruebas
         run: flutter test
 
+      - name: Preparar firma
+        env:
+          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE }}
+        run: |
+          if [ -n "$KEYSTORE" ]; then
+            echo "$KEYSTORE" | base64 -d > "$RUNNER_TEMP/firma.jks"
+            echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/firma.jks" >> "$GITHUB_ENV"
+            echo "Firma fija configurada."
+          else
+            echo "::warning::No hay firma fija (secreto ANDROID_KEYSTORE). Para actualizar el APK habrá que desinstalar la versión anterior."
+          fi
+
       - name: Compilar APK
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: flutter build apk --release --build-name=${{ env.APP_VERSION }} --build-number=${{ github.run_number }}
 
       - name: Preparar archivo
@@ -62,7 +76,7 @@ jobs:
     name: Windows (.exe y .zip)
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: subosito/flutter-action@v2
         with:

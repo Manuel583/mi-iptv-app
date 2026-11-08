@@ -28,19 +28,24 @@ android {
         versionName = flutter.versionName
     }
 
-    // Firma fija para que cada nueva versión se pueda instalar encima de la anterior.
+    // Firma fija (desde los secretos de GitHub) para que cada versión nueva
+    // se instale encima de la anterior. Si no está configurada se usa la de depuración.
+    val keystorePath = System.getenv("ANDROID_KEYSTORE_PATH")
+    val keystorePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
     signingConfigs {
-        create("miIptv") {
-            storeFile = file("mi-iptv.jks")
-            storePassword = "miiptv2026"
-            keyAlias = "mi-iptv"
-            keyPassword = "miiptv2026"
+        if (keystorePath != null && keystorePassword != null && file(keystorePath).exists()) {
+            create("miIptv") {
+                storeFile = file(keystorePath)
+                storePassword = keystorePassword
+                keyAlias = "mi-iptv"
+                keyPassword = keystorePassword
+            }
         }
     }
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("miIptv")
+            signingConfig = signingConfigs.findByName("miIptv") ?: signingConfigs.getByName("debug")
         }
     }
 }
