@@ -36,8 +36,10 @@ Future<void> configureLivePlayer(Player player, {bool muted = false}) async {
   await set('demuxer-max-bytes', '64MiB');
   await set('demuxer-max-back-bytes', '16MiB');
   await set('hls-bitrate', 'max');
-  await set('stream-lavf-o',
-      'reconnect=1,reconnect_streamed=1,reconnect_on_network_error=1,reconnect_delay_max=5');
+  await set(
+    'stream-lavf-o',
+    'reconnect=1,reconnect_streamed=1,reconnect_on_network_error=1,reconnect_delay_max=5',
+  );
   await set('user-agent', app.effectiveUserAgent);
 }
 
@@ -46,8 +48,10 @@ Future<void> openChannelIn(Player player, Channel c) async {
   final p = player.platform;
   if (p is NativePlayer) {
     try {
-      await p.setProperty('user-agent',
-          c.userAgent.isNotEmpty ? c.userAgent : app.effectiveUserAgent);
+      await p.setProperty(
+        'user-agent',
+        c.userAgent.isNotEmpty ? c.userAgent : app.effectiveUserAgent,
+      );
       await p.setProperty('referrer', c.referrer);
     } catch (_) {}
   }
@@ -56,30 +60,62 @@ Future<void> openChannelIn(Player player, Channel c) async {
 
 String languageName(String? code) {
   const names = {
-    'spa': 'Español', 'es': 'Español', 'esp': 'Español',
-    'eng': 'Inglés', 'en': 'Inglés',
-    'ara': 'Árabe', 'ar': 'Árabe',
-    'fre': 'Francés', 'fra': 'Francés', 'fr': 'Francés',
-    'ger': 'Alemán', 'deu': 'Alemán', 'de': 'Alemán',
-    'ita': 'Italiano', 'it': 'Italiano',
-    'por': 'Portugués', 'pt': 'Portugués',
-    'rus': 'Ruso', 'ru': 'Ruso',
-    'tur': 'Turco', 'tr': 'Turco',
-    'heb': 'Hebreo', 'he': 'Hebreo',
-    'per': 'Persa', 'fas': 'Persa', 'fa': 'Persa',
-    'chi': 'Chino', 'zho': 'Chino', 'zh': 'Chino',
-    'jpn': 'Japonés', 'ja': 'Japonés',
-    'kor': 'Coreano', 'ko': 'Coreano',
-    'cat': 'Catalán', 'ca': 'Catalán',
-    'baq': 'Euskera', 'eus': 'Euskera', 'eu': 'Euskera',
-    'glg': 'Gallego', 'gl': 'Gallego',
-    'dut': 'Neerlandés', 'nld': 'Neerlandés', 'nl': 'Neerlandés',
-    'pol': 'Polaco', 'pl': 'Polaco',
-    'ukr': 'Ucraniano', 'uk': 'Ucraniano',
-    'gre': 'Griego', 'ell': 'Griego', 'el': 'Griego',
-    'hin': 'Hindi', 'hi': 'Hindi',
-    'urd': 'Urdu', 'ur': 'Urdu',
-    'qaa': 'Versión original', 'mul': 'Varios idiomas',
+    'spa': 'Español',
+    'es': 'Español',
+    'esp': 'Español',
+    'eng': 'Inglés',
+    'en': 'Inglés',
+    'ara': 'Árabe',
+    'ar': 'Árabe',
+    'fre': 'Francés',
+    'fra': 'Francés',
+    'fr': 'Francés',
+    'ger': 'Alemán',
+    'deu': 'Alemán',
+    'de': 'Alemán',
+    'ita': 'Italiano',
+    'it': 'Italiano',
+    'por': 'Portugués',
+    'pt': 'Portugués',
+    'rus': 'Ruso',
+    'ru': 'Ruso',
+    'tur': 'Turco',
+    'tr': 'Turco',
+    'heb': 'Hebreo',
+    'he': 'Hebreo',
+    'per': 'Persa',
+    'fas': 'Persa',
+    'fa': 'Persa',
+    'chi': 'Chino',
+    'zho': 'Chino',
+    'zh': 'Chino',
+    'jpn': 'Japonés',
+    'ja': 'Japonés',
+    'kor': 'Coreano',
+    'ko': 'Coreano',
+    'cat': 'Catalán',
+    'ca': 'Catalán',
+    'baq': 'Euskera',
+    'eus': 'Euskera',
+    'eu': 'Euskera',
+    'glg': 'Gallego',
+    'gl': 'Gallego',
+    'dut': 'Neerlandés',
+    'nld': 'Neerlandés',
+    'nl': 'Neerlandés',
+    'pol': 'Polaco',
+    'pl': 'Polaco',
+    'ukr': 'Ucraniano',
+    'uk': 'Ucraniano',
+    'gre': 'Griego',
+    'ell': 'Griego',
+    'el': 'Griego',
+    'hin': 'Hindi',
+    'hi': 'Hindi',
+    'urd': 'Urdu',
+    'ur': 'Urdu',
+    'qaa': 'Versión original',
+    'mul': 'Varios idiomas',
     'und': 'Sin especificar',
   };
   if (code == null || code.isEmpty) return '';
@@ -97,7 +133,11 @@ String trackLabel(int i, String? lang, String? title, {String? codec}) {
 }
 
 class PlayerPage extends StatefulWidget {
-  const PlayerPage({super.key, required this.channels, required this.initialIndex});
+  const PlayerPage({
+    super.key,
+    required this.channels,
+    required this.initialIndex,
+  });
   final List<Channel> channels;
   final int initialIndex;
 
@@ -184,7 +224,10 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
       NativeBridge.setPipEnabled(app.settings.pipOnLeave);
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     }
-    _watchdog = Timer.periodic(const Duration(seconds: 4), (_) => _checkStall());
+    _watchdog = Timer.periodic(
+      const Duration(seconds: 4),
+      (_) => _checkStall(),
+    );
     _start();
     _scheduleHide();
   }
@@ -296,14 +339,18 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
     if (_reconnectTimer?.isActive ?? false) return;
     _attempts++;
     if (_attempts > 40) {
-      setState(() => _status =
-          'No se puede conectar con el canal. Prueba con otro o más tarde.');
+      setState(
+        () => _status =
+            'No se puede conectar con el canal. Prueba con otro o más tarde.',
+      );
       return;
     }
     final secs = immediate && _attempts == 1 ? 1 : math.min(2 * _attempts, 15);
     setState(() => _status = 'Reconectando… (intento $_attempts)');
-    _reconnectTimer =
-        Timer(Duration(seconds: secs), () => _open(reconnecting: true));
+    _reconnectTimer = Timer(
+      Duration(seconds: secs),
+      () => _open(reconnecting: true),
+    );
   }
 
   void _changeChannel(int delta) {
@@ -424,8 +471,10 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
     _savedBounds = await windowManager.getBounds();
     _wasMaximized = await windowManager.isMaximized();
     if (_wasMaximized) await windowManager.unmaximize();
-    await windowManager.setTitleBarStyle(TitleBarStyle.hidden,
-        windowButtonVisibility: false);
+    await windowManager.setTitleBarStyle(
+      TitleBarStyle.hidden,
+      windowButtonVisibility: false,
+    );
     await windowManager.setMinimumSize(const Size(220, 124));
     await windowManager.setSize(const Size(480, 270));
     await windowManager.setAlignment(Alignment.bottomRight);
@@ -450,9 +499,9 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
   }
 
   void _openMosaic() {
-    Navigator.of(context).pushReplacement(MaterialPageRoute(
-      builder: (_) => MosaicPage(initial: [_channel, null]),
-    ));
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => MosaicPage(initial: [_channel, null])),
+    );
   }
 
   KeyEventResult _onKey(FocusNode node, KeyEvent e) {
@@ -518,8 +567,10 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
     final cur = list.indexWhere((t) => t.id == _player.state.track.audio.id);
     final next = list[(cur + 1) % list.length];
     _player.setAudioTrack(next);
-    showMessage(context,
-        'Audio: ${trackLabel(list.indexOf(next), next.language, next.title)}');
+    showMessage(
+      context,
+      'Audio: ${trackLabel(list.indexOf(next), next.language, next.title)}',
+    );
   }
 
   void _cycleSubtitles() {
@@ -529,10 +580,11 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
     final next = list[(cur + 1) % list.length];
     _player.setSubtitleTrack(next);
     showMessage(
-        context,
-        next.id == 'no'
-            ? 'Subtítulos desactivados'
-            : 'Subtítulos: ${trackLabel(list.indexOf(next) - 1, next.language, next.title)}');
+      context,
+      next.id == 'no'
+          ? 'Subtítulos desactivados'
+          : 'Subtítulos: ${trackLabel(list.indexOf(next) - 1, next.language, next.title)}',
+    );
   }
 
   Future<void> _chooseAudio() async {
@@ -547,14 +599,24 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
           children: [
             const ListTile(title: Text('Pista de audio')),
             if (list.isEmpty)
-              const ListTile(subtitle: Text('Este canal sólo tiene una pista de audio')),
+              const ListTile(
+                subtitle: Text('Este canal sólo tiene una pista de audio'),
+              ),
             for (var i = 0; i < list.length; i++)
               ListTile(
-                leading: Icon(list[i].id == current
-                    ? Icons.radio_button_checked
-                    : Icons.radio_button_unchecked),
-                title: Text(trackLabel(i, list[i].language, list[i].title,
-                    codec: list[i].codec)),
+                leading: Icon(
+                  list[i].id == current
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_unchecked,
+                ),
+                title: Text(
+                  trackLabel(
+                    i,
+                    list[i].language,
+                    list[i].title,
+                    codec: list[i].codec,
+                  ),
+                ),
                 onTap: () {
                   _player.setAudioTrack(list[i]);
                   Navigator.pop(ctx);
@@ -578,9 +640,11 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
           children: [
             const ListTile(title: Text('Subtítulos')),
             ListTile(
-              leading: Icon(current == 'no' || current == 'auto'
-                  ? Icons.radio_button_checked
-                  : Icons.radio_button_unchecked),
+              leading: Icon(
+                current == 'no' || current == 'auto'
+                    ? Icons.radio_button_checked
+                    : Icons.radio_button_unchecked,
+              ),
               title: const Text('Desactivados'),
               onTap: () {
                 _player.setSubtitleTrack(SubtitleTrack.no());
@@ -591,9 +655,11 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
               const ListTile(subtitle: Text('Este canal no emite subtítulos')),
             for (var i = 0; i < list.length; i++)
               ListTile(
-                leading: Icon(list[i].id == current
-                    ? Icons.radio_button_checked
-                    : Icons.radio_button_unchecked),
+                leading: Icon(
+                  list[i].id == current
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_unchecked,
+                ),
                 title: Text(trackLabel(i, list[i].language, list[i].title)),
                 onTap: () {
                   _player.setSubtitleTrack(list[i]);
@@ -614,13 +680,11 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
         _ => BoxFit.contain,
       };
     });
-    showMessage(
-        context,
-        switch (_fit) {
-          BoxFit.cover => 'Imagen: rellenar (recorta bordes)',
-          BoxFit.fill => 'Imagen: estirar',
-          _ => 'Imagen: ajustar',
-        });
+    showMessage(context, switch (_fit) {
+      BoxFit.cover => 'Imagen: rellenar (recorta bordes)',
+      BoxFit.fill => 'Imagen: estirar',
+      _ => 'Imagen: ajustar',
+    });
   }
 
   // ------------------------------------------------------------ Construcción
@@ -648,8 +712,8 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
         body: _inPip
             ? video
             : _mini
-                ? _miniView(video)
-                : _fullView(video),
+            ? _miniView(video)
+            : _fullView(video),
       ),
     );
   }
@@ -679,22 +743,13 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
           ),
           if (_buffering && _status == null)
             const Center(
-                child: CircularProgressIndicator(color: Colors.white70)),
+              child: CircularProgressIndicator(color: Colors.white70),
+            ),
           if (_status != null) Center(child: _StatusBox(text: _status!)),
           if (_banner || _controls)
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: _topBar(now, next),
-            ),
+            Positioned(top: 0, left: 0, right: 0, child: _topBar(now, next)),
           if (_controls)
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: _bottomBar(),
-            ),
+            Positioned(left: 0, right: 0, bottom: 0, child: _bottomBar()),
         ],
       ),
     );
@@ -711,7 +766,11 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
         ),
       ),
       padding: EdgeInsets.fromLTRB(
-          8, MediaQuery.paddingOf(context).top + 8, 16, 32),
+        8,
+        MediaQuery.paddingOf(context).top + 8,
+        16,
+        32,
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -730,8 +789,9 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
               children: [
                 Text(
                   '${widget.channels.length > 1 ? '${_index + 1}. ' : ''}${app.channelName(_channel)}',
-                  style: theme.textTheme.titleMedium
-                      ?.copyWith(color: Colors.white),
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: Colors.white,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -750,10 +810,12 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
                     overflow: TextOverflow.ellipsis,
                   ),
                 if (now == null)
-                  Text(app.groupName(_channel.group),
-                      style: const TextStyle(color: Colors.white54),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis),
+                  Text(
+                    app.groupName(_channel.group),
+                    style: const TextStyle(color: Colors.white54),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
               ],
             ),
           ),
@@ -763,7 +825,8 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
                 : 'Añadir a favoritos',
             color: app.isFavorite(_channel) ? Colors.amber : Colors.white,
             icon: Icon(
-                app.isFavorite(_channel) ? Icons.star : Icons.star_border),
+              app.isFavorite(_channel) ? Icons.star : Icons.star_border,
+            ),
             onPressed: () => setState(() => app.toggleFavorite(_channel)),
           ),
         ],
@@ -775,15 +838,18 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
     final audioCount = _audioTracks.length;
     final subCount = _subTracks.length;
     final wide = MediaQuery.sizeOf(context).width > 640;
-    Widget btn(IconData icon, String tip, VoidCallback? onTap,
-            {Color? color}) =>
-        IconButton(
-          tooltip: tip,
-          color: color ?? Colors.white,
-          disabledColor: Colors.white30,
-          icon: Icon(icon),
-          onPressed: onTap,
-        );
+    Widget btn(
+      IconData icon,
+      String tip,
+      VoidCallback? onTap, {
+      Color? color,
+    }) => IconButton(
+      tooltip: tip,
+      color: color ?? Colors.white,
+      disabledColor: Colors.white30,
+      icon: Icon(icon),
+      onPressed: onTap,
+    );
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
@@ -793,19 +859,35 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
         ),
       ),
       padding: EdgeInsets.fromLTRB(
-          8, 32, 8, MediaQuery.paddingOf(context).bottom + 8),
+        8,
+        32,
+        8,
+        MediaQuery.paddingOf(context).bottom + 8,
+      ),
       child: Wrap(
         alignment: WrapAlignment.center,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          btn(Icons.skip_previous, 'Canal anterior (↑)',
-              widget.channels.length > 1 ? () => _changeChannel(-1) : null),
-          btn(_playing ? Icons.pause : Icons.play_arrow,
-              _playing ? 'Pausa (Espacio)' : 'Reproducir (Espacio)', _togglePlay),
-          btn(Icons.skip_next, 'Canal siguiente (↓)',
-              widget.channels.length > 1 ? () => _changeChannel(1) : null),
-          btn(_muted ? Icons.volume_off : Icons.volume_up, 'Silencio (M)',
-              _toggleMute),
+          btn(
+            Icons.skip_previous,
+            'Canal anterior (↑)',
+            widget.channels.length > 1 ? () => _changeChannel(-1) : null,
+          ),
+          btn(
+            _playing ? Icons.pause : Icons.play_arrow,
+            _playing ? 'Pausa (Espacio)' : 'Reproducir (Espacio)',
+            _togglePlay,
+          ),
+          btn(
+            Icons.skip_next,
+            'Canal siguiente (↓)',
+            widget.channels.length > 1 ? () => _changeChannel(1) : null,
+          ),
+          btn(
+            _muted ? Icons.volume_off : Icons.volume_up,
+            'Silencio (M)',
+            _toggleMute,
+          ),
           if (wide && !_isAndroid)
             SizedBox(
               width: 120,
@@ -815,25 +897,38 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
                 onChanged: _setVolume,
               ),
             ),
-          btn(Icons.audiotrack,
-              audioCount > 1 ? 'Audio: $audioCount pistas (A)' : 'Pista de audio',
-              _chooseAudio,
-              color: audioCount > 1 ? Colors.lightBlueAccent : null),
-          btn(Icons.subtitles_outlined,
-              subCount > 0 ? 'Subtítulos: $subCount (S)' : 'Subtítulos',
-              _chooseSubtitles,
-              color: subCount > 0 ? Colors.lightBlueAccent : null),
+          btn(
+            Icons.audiotrack,
+            audioCount > 1 ? 'Audio: $audioCount pistas (A)' : 'Pista de audio',
+            _chooseAudio,
+            color: audioCount > 1 ? Colors.lightBlueAccent : null,
+          ),
+          btn(
+            Icons.subtitles_outlined,
+            subCount > 0 ? 'Subtítulos: $subCount (S)' : 'Subtítulos',
+            _chooseSubtitles,
+            color: subCount > 0 ? Colors.lightBlueAccent : null,
+          ),
           btn(Icons.aspect_ratio, 'Ajuste de imagen', _cycleFit),
           btn(Icons.grid_view, 'Mosaico', _openMosaic),
-          btn(Icons.list, 'Lista de canales (L)',
-              () => _scaffoldKey.currentState?.openEndDrawer()),
+          btn(
+            Icons.list,
+            'Lista de canales (L)',
+            () => _scaffoldKey.currentState?.openEndDrawer(),
+          ),
           if (_isAndroid)
             btn(Icons.picture_in_picture_alt, 'Imagen flotante', _enterPip),
           if (_isWindows) ...[
-            btn(Icons.picture_in_picture_alt, 'Miniventana siempre visible (P)',
-                _toggleMini),
-            btn(_fullscreen ? Icons.fullscreen_exit : Icons.fullscreen,
-                'Pantalla completa (F)', _toggleFullscreen),
+            btn(
+              Icons.picture_in_picture_alt,
+              'Miniventana siempre visible (P)',
+              _toggleMini,
+            ),
+            btn(
+              _fullscreen ? Icons.fullscreen_exit : Icons.fullscreen,
+              'Pantalla completa (F)',
+              _toggleFullscreen,
+            ),
           ],
         ],
       ),
@@ -856,11 +951,15 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
           ),
           if (_buffering && _status == null)
             const Center(
-                child: SizedBox(
-                    width: 28,
-                    height: 28,
-                    child: CircularProgressIndicator(
-                        strokeWidth: 2, color: Colors.white70))),
+              child: SizedBox(
+                width: 28,
+                height: 28,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white70,
+                ),
+              ),
+            ),
           if (_status != null)
             Center(child: _StatusBox(text: _status!, small: true)),
           if (_controls || _banner)
@@ -873,8 +972,9 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                    color: Colors.white,
-                    shadows: [Shadow(blurRadius: 4, color: Colors.black)]),
+                  color: Colors.white,
+                  shadows: [Shadow(blurRadius: 4, color: Colors.black)],
+                ),
               ),
             ),
           if (_controls)
@@ -883,14 +983,26 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
               right: 0,
               child: Row(
                 children: [
-                  _miniBtn(Icons.skip_previous, 'Canal anterior',
-                      () => _changeChannel(-1)),
-                  _miniBtn(Icons.skip_next, 'Canal siguiente',
-                      () => _changeChannel(1)),
-                  _miniBtn(_muted ? Icons.volume_off : Icons.volume_up,
-                      'Silencio', _toggleMute),
-                  _miniBtn(Icons.open_in_full, 'Volver a ventana normal',
-                      _toggleMini),
+                  _miniBtn(
+                    Icons.skip_previous,
+                    'Canal anterior',
+                    () => _changeChannel(-1),
+                  ),
+                  _miniBtn(
+                    Icons.skip_next,
+                    'Canal siguiente',
+                    () => _changeChannel(1),
+                  ),
+                  _miniBtn(
+                    _muted ? Icons.volume_off : Icons.volume_up,
+                    'Silencio',
+                    _toggleMute,
+                  ),
+                  _miniBtn(
+                    Icons.open_in_full,
+                    'Volver a ventana normal',
+                    _toggleMini,
+                  ),
                 ],
               ),
             ),
@@ -900,14 +1012,14 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
   }
 
   Widget _miniBtn(IconData icon, String tip, VoidCallback onTap) => IconButton(
-        tooltip: tip,
-        iconSize: 18,
-        visualDensity: VisualDensity.compact,
-        color: Colors.white,
-        style: IconButton.styleFrom(backgroundColor: Colors.black45),
-        icon: Icon(icon),
-        onPressed: onTap,
-      );
+    tooltip: tip,
+    iconSize: 18,
+    visualDensity: VisualDensity.compact,
+    color: Colors.white,
+    style: IconButton.styleFrom(backgroundColor: Colors.black45),
+    icon: Icon(icon),
+    onPressed: onTap,
+  );
 
   Widget _channelDrawer() {
     return Drawer(
@@ -929,12 +1041,18 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
                   return ListTile(
                     selected: i == _index,
                     leading: ChannelLogo(c, size: 32),
-                    title: Text(app.channelName(c),
-                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                    title: Text(
+                      app.channelName(c),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                     subtitle: now == null
                         ? null
-                        : Text(now.title,
-                            maxLines: 1, overflow: TextOverflow.ellipsis),
+                        : Text(
+                            now.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                     onTap: () {
                       Navigator.pop(context);
                       _jumpTo(i);
@@ -963,9 +1081,11 @@ class _StatusBox extends StatelessWidget {
         color: Colors.black54,
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Text(text,
-          textAlign: TextAlign.center,
-          style: TextStyle(color: Colors.white, fontSize: small ? 12 : 16)),
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        style: TextStyle(color: Colors.white, fontSize: small ? 12 : 16),
+      ),
     );
   }
 }

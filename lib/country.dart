@@ -133,7 +133,8 @@ final Map<String, String> _lookup = () {
 const _arabAliases = {'arab', 'arabic', 'arb', 'ara', 'arabia', 'árabe'};
 
 final _prefixRe = RegExp(
-    r'^\s*[\[\(|]?\s*([A-Za-zÀ-ÿ. ]{2,24}?)\s*(?:[\]\)|:]|\s-\s|\s–\s|\s\|)');
+  r'^\s*[\[\(|]?\s*([A-Za-zÀ-ÿ. ]{2,24}?)\s*(?:[\]\)|:]|\s-\s|\s–\s|\s\|)',
+);
 final _leadingCodeRe = RegExp(r'^\s*([A-Z]{2,3})\s+\S');
 
 /// Nombre del país (en español) de un código o nombre, o null.

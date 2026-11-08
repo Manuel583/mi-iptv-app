@@ -36,17 +36,24 @@ Future<String?> askText(
       ),
       actions: [
         TextButton(
-            onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Cancelar'),
+        ),
         FilledButton(
-            onPressed: () => Navigator.pop(ctx, ctrl.text),
-            child: Text(okText)),
+          onPressed: () => Navigator.pop(ctx, ctrl.text),
+          child: Text(okText),
+        ),
       ],
     ),
   );
 }
 
-Future<bool> confirm(BuildContext context, String title, String text,
-    {String ok = 'Aceptar'}) async {
+Future<bool> confirm(
+  BuildContext context,
+  String title,
+  String text, {
+  String ok = 'Aceptar',
+}) async {
   final r = await showDialog<bool>(
     context: context,
     builder: (ctx) => AlertDialog(
@@ -54,10 +61,13 @@ Future<bool> confirm(BuildContext context, String title, String text,
       content: Text(text),
       actions: [
         TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar')),
+          onPressed: () => Navigator.pop(ctx, false),
+          child: const Text('Cancelar'),
+        ),
         FilledButton(
-            onPressed: () => Navigator.pop(ctx, true), child: Text(ok)),
+          onPressed: () => Navigator.pop(ctx, true),
+          child: Text(ok),
+        ),
       ],
     ),
   );
@@ -66,15 +76,16 @@ Future<bool> confirm(BuildContext context, String title, String text,
 
 void openPlayer(BuildContext context, List<Channel> list, int index) {
   if (list.isEmpty) return;
-  Navigator.of(context).push(MaterialPageRoute(
-    builder: (_) => PlayerPage(channels: list, initialIndex: index),
-  ));
+  Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (_) => PlayerPage(channels: list, initialIndex: index),
+    ),
+  );
 }
 
 void openMosaic(BuildContext context, List<Channel?> initial) {
-  Navigator.of(context).push(MaterialPageRoute(
-    builder: (_) => MosaicPage(initial: initial),
-  ));
+  Navigator.of(context)
+      .push(MaterialPageRoute(builder: (_) => MosaicPage(initial: initial)));
 }
 
 class ChannelLogo extends StatelessWidget {
@@ -98,7 +109,9 @@ class ChannelLogo extends StatelessWidget {
             ? '?'
             : app.channelName(channel).trim()[0].toUpperCase(),
         style: TextStyle(
-            color: cs.onPrimaryContainer, fontWeight: FontWeight.bold),
+          color: cs.onPrimaryContainer,
+          fontWeight: FontWeight.bold,
+        ),
       ),
     );
     if (channel.logo.isEmpty || !channel.logo.startsWith('http')) {
@@ -165,33 +178,44 @@ class ChannelTile extends StatelessWidget {
             borderRadius: BorderRadius.circular(2),
           ),
           if (subtitleParts.isNotEmpty)
-            Text(subtitleParts.join(' | '),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodySmall),
+            Text(
+              subtitleParts.join(' | '),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
         ],
       );
     } else if (subtitleParts.isNotEmpty) {
-      subtitle = Text(subtitleParts.join(' | '),
-          maxLines: 1, overflow: TextOverflow.ellipsis);
+      subtitle = Text(
+        subtitleParts.join(' | '),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      );
     }
     return Opacity(
       opacity: hidden ? 0.45 : 1,
       child: ListTile(
         leading: ChannelLogo(channel),
-        title: Text(app.channelName(channel),
-            maxLines: 1, overflow: TextOverflow.ellipsis),
+        title: Text(
+          app.channelName(channel),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
         subtitle: subtitle,
         onTap: onTap,
         onLongPress: () => showChannelActions(context, channel, folder: folder),
-        trailing: trailing ??
+        trailing:
+            trailing ??
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 IconButton(
                   tooltip: fav ? 'Quitar de favoritos' : 'Añadir a favoritos',
-                  icon: Icon(fav ? Icons.star : Icons.star_border,
-                      color: fav ? Colors.amber : null),
+                  icon: Icon(
+                    fav ? Icons.star : Icons.star_border,
+                    color: fav ? Colors.amber : null,
+                  ),
                   onPressed: () => app.toggleFavorite(channel),
                 ),
                 IconButton(
@@ -207,8 +231,11 @@ class ChannelTile extends StatelessWidget {
   }
 }
 
-Future<void> showChannelActions(BuildContext context, Channel c,
-    {Folder? folder}) async {
+Future<void> showChannelActions(
+  BuildContext context,
+  Channel c, {
+  Folder? folder,
+}) async {
   await showModalBottomSheet(
     context: context,
     showDragHandle: true,
@@ -245,8 +272,7 @@ Future<void> showChannelActions(BuildContext context, Channel c,
               ),
               ListTile(
                 leading: Icon(fav ? Icons.star : Icons.star_border),
-                title:
-                    Text(fav ? 'Quitar de favoritos' : 'Añadir a favoritos'),
+                title: Text(fav ? 'Quitar de favoritos' : 'Añadir a favoritos'),
                 onTap: () {
                   app.toggleFavorite(c);
                   Navigator.pop(ctx);
@@ -274,24 +300,30 @@ Future<void> showChannelActions(BuildContext context, Channel c,
                 title: const Text('Renombrar'),
                 onTap: () async {
                   Navigator.pop(ctx);
-                  final name = await askText(context,
-                      title: 'Renombrar canal',
-                      initial: app.channelName(c),
-                      okText: 'Guardar');
+                  final name = await askText(
+                    context,
+                    title: 'Renombrar canal',
+                    initial: app.channelName(c),
+                    okText: 'Guardar',
+                  );
                   if (name != null) app.renameChannel(c, name);
                 },
               ),
               ListTile(
-                leading: Icon(hidden
-                    ? Icons.visibility_outlined
-                    : Icons.visibility_off_outlined),
+                leading: Icon(
+                  hidden
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined,
+                ),
                 title: Text(hidden ? 'Mostrar canal' : 'Ocultar canal'),
                 onTap: () {
                   app.setChannelHidden(c, !hidden);
                   Navigator.pop(ctx);
                   if (!hidden && !app.settings.showHidden) {
-                    showMessage(context,
-                        'Canal ocultado. Puedes volver a verlo activando "Mostrar ocultos" en Ajustes.');
+                    showMessage(
+                      context,
+                      'Canal ocultado. Puedes volver a verlo activando "Mostrar ocultos" en Ajustes.',
+                    );
                   }
                 },
               ),
@@ -300,8 +332,9 @@ Future<void> showChannelActions(BuildContext context, Channel c,
                 title: const Text('Ver programación'),
                 onTap: () {
                   Navigator.pop(ctx);
-                  Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => EpgPage(channel: c)));
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => EpgPage(channel: c)),
+                  );
                 },
               ),
               ListTile(
@@ -331,9 +364,11 @@ Future<void> pickFolderAndAdd(BuildContext context, Channel c) async {
           SimpleDialogOption(
             onPressed: () => Navigator.pop(ctx, f),
             child: ListTile(
-              leading: Icon(f.channelKeys.contains(c.key)
-                  ? Icons.folder
-                  : Icons.folder_outlined),
+              leading: Icon(
+                f.channelKeys.contains(c.key)
+                    ? Icons.folder
+                    : Icons.folder_outlined,
+              ),
               title: Text(f.name),
               subtitle: Text('${f.channelKeys.length} canales'),
             ),
@@ -351,8 +386,11 @@ Future<void> pickFolderAndAdd(BuildContext context, Channel c) async {
   if (!context.mounted || result == null) return;
   Folder? folder;
   if (result == 'new') {
-    final name = await askText(context,
-        title: 'Nueva carpeta', label: 'Nombre (p. ej. "Elecciones")');
+    final name = await askText(
+      context,
+      title: 'Nueva carpeta',
+      label: 'Nombre (p. ej. "Elecciones")',
+    );
     if (name == null || name.trim().isEmpty) return;
     folder = app.createFolder(name);
   } else {
@@ -407,8 +445,11 @@ class ChannelListView extends StatelessWidget {
                 index: i,
                 child: const Icon(Icons.drag_handle),
               ),
-              title: Text(app.channelName(c),
-                  maxLines: 1, overflow: TextOverflow.ellipsis),
+              title: Text(
+                app.channelName(c),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -416,19 +457,23 @@ class ChannelListView extends StatelessWidget {
                     tooltip: 'Renombrar',
                     icon: const Icon(Icons.edit_outlined),
                     onPressed: () async {
-                      final name = await askText(context,
-                          title: 'Renombrar canal',
-                          initial: app.channelName(c),
-                          okText: 'Guardar');
+                      final name = await askText(
+                        context,
+                        title: 'Renombrar canal',
+                        initial: app.channelName(c),
+                        okText: 'Guardar',
+                      );
                       if (name != null) app.renameChannel(c, name);
                     },
                   ),
                   if (folder == null)
                     IconButton(
                       tooltip: hidden ? 'Mostrar' : 'Ocultar',
-                      icon: Icon(hidden
-                          ? Icons.visibility_off_outlined
-                          : Icons.visibility_outlined),
+                      icon: Icon(
+                        hidden
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                      ),
                       onPressed: () => app.setChannelHidden(c, !hidden),
                     )
                   else

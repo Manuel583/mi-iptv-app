@@ -2,7 +2,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -29,6 +28,7 @@ class AppController extends ChangeNotifier {
   static final AppController instance = AppController._();
 
   late Directory _dir;
+  bool _dirReady = false;
   bool loaded = false;
 
   AppSettings settings = AppSettings();
@@ -70,6 +70,7 @@ class AppController extends ChangeNotifier {
 
   Future<void> load() async {
     _dir = await getApplicationSupportDirectory();
+    _dirReady = true;
     await Directory('${_dir.path}/channels').create(recursive: true);
     await Directory('${_dir.path}/files').create(recursive: true);
     await Directory('${_dir.path}/epg').create(recursive: true);
@@ -94,22 +95,27 @@ class AppController extends ChangeNotifier {
 
   void _applyConfig(Map<String, dynamic> j) {
     settings = AppSettings.fromJson(
-        (j['settings'] as Map?)?.cast<String, dynamic>());
+      (j['settings'] as Map?)?.cast<String, dynamic>(),
+    );
     custom = Customization.fromJson(
-        (j['custom'] as Map?)?.cast<String, dynamic>());
+      (j['custom'] as Map?)?.cast<String, dynamic>(),
+    );
     sources
       ..clear()
-      ..addAll(((j['sources'] ?? const []) as List).map((e) =>
-          PlaylistSource.fromJson(Map<String, dynamic>.from(e as Map))));
+      ..addAll(
+        ((j['sources'] ?? const []) as List).map(
+          (e) => PlaylistSource.fromJson(Map<String, dynamic>.from(e as Map)),
+        ),
+      );
   }
 
   Map<String, dynamic> _configJson() => {
-        'app': 'mi-iptv',
-        'version': 1,
-        'settings': settings.toJson(),
-        'custom': custom.toJson(),
-        'sources': sources.map((s) => s.toJson()).toList(),
-      };
+    'app': 'mi-iptv',
+    'version': 1,
+    'settings': settings.toJson(),
+    'custom': custom.toJson(),
+    'sources': sources.map((s) => s.toJson()).toList(),
+  };
 
   Timer? _saveTimer;
   void save() {
@@ -118,6 +124,7 @@ class AppController extends ChangeNotifier {
   }
 
   Future<void> _saveNow() async {
+    if (!_dirReady) return;
     try {
       final f = File('${_dir.path}/config.json');
       final tmp = File('${f.path}.tmp');
@@ -140,13 +147,26 @@ class AppController extends ChangeNotifier {
     if (!await f.exists()) return;
     try {
       final text = await f.readAsString();
-      final list = await Isolate.run(() => (jsonDecode(text) as List)
-          .map((e) => Channel.fromJson(Map<String, dynamic>.from(e as Map)))
-          .toList());
+      final list = await compute(_decodeChannels, text);
       _channelsBySource[s.id] = list;
     } catch (e) {
       debugPrint('Caché dañada de ${s.name}: $e');
     }
+  }
+
+  /// Sólo para pruebas: carga canales sin tocar el disco.
+  @visibleForTesting
+  void debugSetData(PlaylistSource s, List<Channel> channels) {
+    sources
+      ..clear()
+      ..add(s);
+    _channelsBySource
+      ..clear()
+      ..[s.id] = channels;
+    s.channelCount = channels.length;
+    _rebuildIndex();
+    loaded = true;
+    notifyListeners();
   }
 
   // ---------------------------------------------------------------- Índices
@@ -277,14 +297,14 @@ class AppController extends ChangeNotifier {
   }
 
   List<Channel> favoriteChannels() => [
-        for (final k in custom.favorites)
-          if (byKey[k] != null) byKey[k]!,
-      ];
+    for (final k in custom.favorites)
+      if (byKey[k] != null) byKey[k]!,
+  ];
 
   List<Channel> folderChannels(Folder f) => [
-        for (final k in f.channelKeys)
-          if (byKey[k] != null) byKey[k]!,
-      ];
+    for (final k in f.channelKeys)
+      if (byKey[k] != null) byKey[k]!,
+  ];
 
   List<Channel> search(String query, {int limit = 500}) {
     final q = normalizeText(query.trim());
@@ -479,15 +499,18 @@ class AppController extends ChangeNotifier {
     changed(reindex: true);
   }
 
-  Map<String, String> _headers([String? ua]) =>
-      {'User-Agent': (ua == null || ua.isEmpty) ? effectiveUserAgent : ua};
+  Map<String, String> _headers([String? ua]) => {
+    'User-Agent': (ua == null || ua.isEmpty) ? effectiveUserAgent : ua,
+  };
 
   Future<String> _getText(String url) async {
     final r = await _http
         .get(Uri.parse(url), headers: _headers())
         .timeout(const Duration(minutes: 3));
     if (r.statusCode >= 400) {
-      throw HttpException('El servidor respondió con el código ${r.statusCode}');
+      throw HttpException(
+        'El servidor respondió con el código ${r.statusCode}',
+      );
     }
     return utf8.decode(r.bodyBytes, allowMalformed: true);
   }
@@ -502,15 +525,17 @@ class AppController extends ChangeNotifier {
       switch (s.type) {
         case SourceType.m3uUrl:
           final text = await _getText(s.url.trim());
-          final parsed = await Isolate.run(() => parseM3u(text, id));
+          final parsed = await compute(_parseM3uJob, (text, id));
           channels = parsed.channels;
           s.detectedEpgUrl = parsed.epgUrl;
           break;
         case SourceType.m3uFile:
           final f = File('${_dir.path}/files/${s.id}.m3u');
-          if (!await f.exists()) throw 'No se encuentra el archivo de la lista.';
+          if (!await f.exists()) {
+            throw 'No se encuentra el archivo de la lista.';
+          }
           final text = await f.readAsString();
-          final parsed = await Isolate.run(() => parseM3u(text, id));
+          final parsed = await compute(_parseM3uJob, (text, id));
           channels = parsed.channels;
           s.detectedEpgUrl = parsed.epgUrl;
           break;
@@ -522,15 +547,15 @@ class AppController extends ChangeNotifier {
           final catsText = await _getText('$base&action=get_live_categories');
           final streamsText = await _getText('$base&action=get_live_streams');
           final user = s.username, pass = s.password, out = s.xtreamOutput;
-          channels = await Isolate.run(() => parseXtream(
-                categoriesJson: catsText,
-                streamsJson: streamsText,
-                sourceId: id,
-                server: server,
-                username: user,
-                password: pass,
-                output: out,
-              ));
+          channels = await compute(_parseXtreamJob, [
+            catsText,
+            streamsText,
+            id,
+            server,
+            user,
+            pass,
+            out,
+          ]);
           break;
       }
       if (channels.isEmpty) {
@@ -558,7 +583,9 @@ class AppController extends ChangeNotifier {
     if (e is SocketException) {
       return 'No se pudo conectar con el servidor (${e.message}).';
     }
-    if (e is TimeoutException) return 'El servidor tardó demasiado en responder.';
+    if (e is TimeoutException) {
+      return 'El servidor tardó demasiado en responder.';
+    }
     if (e is FormatException) return e.message;
     if (e is HttpException) return e.message;
     return e.toString();
@@ -584,7 +611,10 @@ class AppController extends ChangeNotifier {
 
   void _startAutoRefresh() {
     _autoTimer?.cancel();
-    _autoTimer = Timer.periodic(const Duration(minutes: 10), (_) => _checkAuto());
+    _autoTimer = Timer.periodic(
+      const Duration(minutes: 10),
+      (_) => _checkAuto(),
+    );
     // Comprobación inicial, poco después de abrir.
     Timer(const Duration(seconds: 5), _checkAuto);
   }
@@ -626,7 +656,9 @@ class AppController extends ChangeNotifier {
         try {
           final req = http.Request('GET', Uri.parse(url))
             ..headers.addAll(_headers());
-          final resp = await _http.send(req).timeout(const Duration(minutes: 2));
+          final resp = await _http
+              .send(req)
+              .timeout(const Duration(minutes: 2));
           if (resp.statusCode >= 400) continue;
           final path = _epgFileName(url);
           final tmp = File('$path.tmp');
@@ -656,7 +688,7 @@ class AppController extends ChangeNotifier {
       final path = _epgFileName(url);
       if (!await File(path).exists()) continue;
       try {
-        final data = await Isolate.run(() => parseXmltvFile(path, from, to));
+        final data = await compute(_parseEpgJob, (path, from, to));
         merged.merge(data);
       } catch (e) {
         debugPrint('Guía no válida $url: $e');
@@ -694,7 +726,8 @@ class AppController extends ChangeNotifier {
       ..['exportedAt'] = DateTime.now().toIso8601String()
       ..['files'] = files;
     return Uint8List.fromList(
-        utf8.encode(const JsonEncoder.withIndent('  ').convert(j)));
+      utf8.encode(const JsonEncoder.withIndent('  ').convert(j)),
+    );
   }
 
   /// Sustituye toda la configuración por la del archivo.
@@ -702,7 +735,8 @@ class AppController extends ChangeNotifier {
     final j = jsonDecode(utf8.decode(bytes, allowMalformed: true));
     if (j is! Map || j['app'] != 'mi-iptv') {
       throw const FormatException(
-          'El archivo no es una configuración de Mi IPTV.');
+        'El archivo no es una configuración de Mi IPTV.',
+      );
     }
     final map = Map<String, dynamic>.from(j);
     // Borrar datos anteriores.
@@ -716,8 +750,7 @@ class AppController extends ChangeNotifier {
     _applyConfig(map);
     final files = (map['files'] as Map?) ?? const {};
     for (final e in files.entries) {
-      await File('${_dir.path}/files/${e.key}.m3u')
-          .writeAsString('${e.value}');
+      await File('${_dir.path}/files/${e.key}.m3u').writeAsString('${e.value}');
     }
     settings.lastRefresh = null;
     changed(reindex: true);
@@ -727,3 +760,24 @@ class AppController extends ChangeNotifier {
 }
 
 final app = AppController.instance;
+
+// Tareas pesadas que se ejecutan en segundo plano (otro hilo).
+
+List<Channel> _decodeChannels(String text) => (jsonDecode(text) as List)
+    .map((e) => Channel.fromJson(Map<String, dynamic>.from(e as Map)))
+    .toList();
+
+ParsedPlaylist _parseM3uJob((String, String) a) => parseM3u(a.$1, a.$2);
+
+List<Channel> _parseXtreamJob(List<String> a) => parseXtream(
+  categoriesJson: a[0],
+  streamsJson: a[1],
+  sourceId: a[2],
+  server: a[3],
+  username: a[4],
+  password: a[5],
+  output: a[6],
+);
+
+Future<EpgData> _parseEpgJob((String, DateTime, DateTime) a) =>
+    parseXmltvFile(a.$1, a.$2, a.$3);

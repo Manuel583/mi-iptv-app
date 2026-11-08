@@ -49,8 +49,10 @@ class SourcesPage extends StatelessWidget {
             return const Center(
               child: Padding(
                 padding: EdgeInsets.all(24),
-                child: Text('Todavía no has añadido ninguna lista.',
-                    textAlign: TextAlign.center),
+                child: Text(
+                  'Todavía no has añadido ninguna lista.',
+                  textAlign: TextAlign.center,
+                ),
               ),
             );
           }
@@ -60,21 +62,25 @@ class SourcesPage extends StatelessWidget {
               if (app.refreshStatus.isNotEmpty)
                 ListTile(
                   leading: const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(strokeWidth: 2)),
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
                   title: Text(app.refreshStatus),
                 ),
               for (final s in app.sources)
                 Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  margin: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   child: ListTile(
                     leading: Icon(
                       s.type == SourceType.xtream
                           ? Icons.dns_outlined
                           : s.type == SourceType.m3uFile
-                              ? Icons.insert_drive_file_outlined
-                              : Icons.link,
+                          ? Icons.insert_drive_file_outlined
+                          : Icons.link,
                       color: s.enabled ? null : Colors.grey,
                     ),
                     title: Text(s.name),
@@ -83,7 +89,9 @@ class SourcesPage extends StatelessWidget {
                       '${s.enabled ? '' : ' | DESACTIVADA'}'
                       '${s.lastError != null ? '\nError: ${s.lastError}' : ''}',
                       style: s.lastError != null
-                          ? TextStyle(color: Theme.of(context).colorScheme.error)
+                          ? TextStyle(
+                              color: Theme.of(context).colorScheme.error,
+                            )
                           : null,
                     ),
                     isThreeLine: s.lastError != null,
@@ -94,8 +102,10 @@ class SourcesPage extends StatelessWidget {
                             final err = await app.refreshSource(s);
                             await app.refreshEpg();
                             if (context.mounted) {
-                              showMessage(context,
-                                  err ?? 'Lista "${s.name}" actualizada');
+                              showMessage(
+                                context,
+                                err ?? 'Lista "${s.name}" actualizada',
+                              );
                             }
                             break;
                           case 'edit':
@@ -106,11 +116,12 @@ class SourcesPage extends StatelessWidget {
                             break;
                           case 'delete':
                             if (await confirm(
-                                context,
-                                'Eliminar lista',
-                                '¿Eliminar "${s.name}"? Tus favoritos y carpetas se conservan, '
-                                    'pero sus canales dejarán de aparecer.',
-                                ok: 'Eliminar')) {
+                              context,
+                              'Eliminar lista',
+                              '¿Eliminar "${s.name}"? Tus favoritos y carpetas se conservan, '
+                                  'pero sus canales dejarán de aparecer.',
+                              ok: 'Eliminar',
+                            )) {
                               await app.removeSource(s);
                             }
                             break;
@@ -118,13 +129,21 @@ class SourcesPage extends StatelessWidget {
                       },
                       itemBuilder: (_) => [
                         const PopupMenuItem(
-                            value: 'refresh', child: Text('Actualizar ahora')),
-                        const PopupMenuItem(value: 'edit', child: Text('Editar')),
-                        PopupMenuItem(
-                            value: 'toggle',
-                            child: Text(s.enabled ? 'Desactivar' : 'Activar')),
+                          value: 'refresh',
+                          child: Text('Actualizar ahora'),
+                        ),
                         const PopupMenuItem(
-                            value: 'delete', child: Text('Eliminar')),
+                          value: 'edit',
+                          child: Text('Editar'),
+                        ),
+                        PopupMenuItem(
+                          value: 'toggle',
+                          child: Text(s.enabled ? 'Desactivar' : 'Activar'),
+                        ),
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: Text('Eliminar'),
+                        ),
                       ],
                     ),
                   ),
@@ -172,12 +191,19 @@ Future<void> showAddSourceMenu(BuildContext context) async {
   await showSourceEditor(context, type: type);
 }
 
-Future<void> showSourceEditor(BuildContext context,
-    {PlaylistSource? existing, SourceType? type}) async {
-  await Navigator.of(context).push(MaterialPageRoute(
-    builder: (_) => SourceEditorPage(
-        existing: existing, type: existing?.type ?? type ?? SourceType.m3uUrl),
-  ));
+Future<void> showSourceEditor(
+  BuildContext context, {
+  PlaylistSource? existing,
+  SourceType? type,
+}) async {
+  await Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (_) => SourceEditorPage(
+        existing: existing,
+        type: existing?.type ?? type ?? SourceType.m3uUrl,
+      ),
+    ),
+  );
 }
 
 class SourceEditorPage extends StatefulWidget {
@@ -192,12 +218,15 @@ class SourceEditorPage extends StatefulWidget {
 class _SourceEditorPageState extends State<SourceEditorPage> {
   late final _name = TextEditingController(text: widget.existing?.name ?? '');
   late final _url = TextEditingController(text: widget.existing?.url ?? '');
-  late final _server =
-      TextEditingController(text: widget.existing?.server ?? '');
-  late final _user =
-      TextEditingController(text: widget.existing?.username ?? '');
-  late final _pass =
-      TextEditingController(text: widget.existing?.password ?? '');
+  late final _server = TextEditingController(
+    text: widget.existing?.server ?? '',
+  );
+  late final _user = TextEditingController(
+    text: widget.existing?.username ?? '',
+  );
+  late final _pass = TextEditingController(
+    text: widget.existing?.password ?? '',
+  );
   late final _epg = TextEditingController(text: widget.existing?.epgUrl ?? '');
   late String _output = widget.existing?.xtreamOutput ?? 'ts';
   late bool _useIncludedEpg = widget.existing?.useIncludedEpg ?? true;
@@ -225,7 +254,10 @@ class _SourceEditorPageState extends State<SourceEditorPage> {
     if (type == SourceType.m3uUrl) {
       final u = _url.text.trim();
       if (!u.startsWith('http')) {
-        showMessage(context, 'Escribe un enlace que empiece por http:// o https://');
+        showMessage(
+          context,
+          'Escribe un enlace que empiece por http:// o https://',
+        );
         return;
       }
       // Si es un enlace de Xtream (get.php?username=..), se ofrece usarlo así.
@@ -269,7 +301,10 @@ class _SourceEditorPageState extends State<SourceEditorPage> {
     if (err != null) {
       showMessage(context, 'Lista guardada, pero hubo un problema: $err');
     } else {
-      showMessage(context, 'Lista "${s.name}" cargada: ${s.channelCount} canales');
+      showMessage(
+        context,
+        'Lista "${s.name}" cargada: ${s.channelCount} canales',
+      );
     }
     Navigator.pop(context);
   }
@@ -290,9 +325,11 @@ class _SourceEditorPageState extends State<SourceEditorPage> {
     final type = widget.type;
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.existing == null
-            ? 'Añadir ${sourceTypeLabel(type)}'
-            : 'Editar lista'),
+        title: Text(
+          widget.existing == null
+              ? 'Añadir ${sourceTypeLabel(type)}'
+              : 'Editar lista',
+        ),
       ),
       body: AbsorbPointer(
         absorbing: _busy,
@@ -320,16 +357,19 @@ class _SourceEditorPageState extends State<SourceEditorPage> {
             if (type == SourceType.m3uFile) ...[
               OutlinedButton.icon(
                 icon: const Icon(Icons.folder_open),
-                label: Text(_fileName ??
-                    (widget.existing != null
-                        ? 'Sustituir por otro archivo'
-                        : 'Elegir archivo M3U')),
+                label: Text(
+                  _fileName ??
+                      (widget.existing != null
+                          ? 'Sustituir por otro archivo'
+                          : 'Elegir archivo M3U'),
+                ),
                 onPressed: _pickFile,
               ),
               const SizedBox(height: 8),
               const Text(
-                  'El archivo se copia dentro de la aplicación, así que puedes borrarlo después. '
-                  'Para cambiar su contenido, edita la lista y elige el archivo nuevo.'),
+                'El archivo se copia dentro de la aplicación, así que puedes borrarlo después. '
+                'Para cambiar su contenido, edita la lista y elige el archivo nuevo.',
+              ),
             ],
             if (type == SourceType.xtream) ...[
               TextField(
@@ -339,8 +379,7 @@ class _SourceEditorPageState extends State<SourceEditorPage> {
                 decoration: const InputDecoration(
                   labelText: 'Servidor',
                   hintText: 'http://servidor.com:8080',
-                  helperText:
-                      'También puedes pegar aquí el enlace completo con username y password',
+                  helperText: 'También puedes pegar aquí el enlace completo con username y password',
                   border: OutlineInputBorder(),
                 ),
               ),
@@ -361,7 +400,8 @@ class _SourceEditorPageState extends State<SourceEditorPage> {
                   border: const OutlineInputBorder(),
                   suffixIcon: IconButton(
                     icon: Icon(
-                        _showPass ? Icons.visibility_off : Icons.visibility),
+                      _showPass ? Icons.visibility_off : Icons.visibility,
+                    ),
                     onPressed: () => setState(() => _showPass = !_showPass),
                   ),
                 ),
@@ -369,27 +409,34 @@ class _SourceEditorPageState extends State<SourceEditorPage> {
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
                 initialValue: _output,
+                isExpanded: true,
                 decoration: const InputDecoration(
                   labelText: 'Formato de emisión',
                   border: OutlineInputBorder(),
                 ),
                 items: const [
                   DropdownMenuItem(
-                      value: 'ts', child: Text('MPEG-TS (.ts), recomendado')),
+                    value: 'ts',
+                    child: Text('MPEG-TS (.ts), recomendado'),
+                  ),
                   DropdownMenuItem(value: 'm3u8', child: Text('HLS (.m3u8)')),
                 ],
                 onChanged: (v) => setState(() => _output = v ?? 'ts'),
               ),
             ],
             const SizedBox(height: 24),
-            Text('Guía de programación (EPG)',
-                style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              'Guía de programación (EPG)',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               title: const Text('Usar la guía incluida en la lista'),
-              subtitle: Text(type == SourceType.xtream
-                  ? 'Se descarga del propio servidor'
-                  : 'Si la lista indica un enlace de guía (url-tvg)'),
+              subtitle: Text(
+                type == SourceType.xtream
+                    ? 'Se descarga del propio servidor'
+                    : 'Si la lista indica un enlace de guía (url-tvg)',
+              ),
               value: _useIncludedEpg,
               onChanged: (v) => setState(() => _useIncludedEpg = v),
             ),
@@ -408,7 +455,8 @@ class _SourceEditorPageState extends State<SourceEditorPage> {
                   ? const SizedBox(
                       width: 18,
                       height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2))
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
                   : const Icon(Icons.check),
               label: Text(_busy ? 'Cargando canales…' : 'Guardar y cargar'),
               onPressed: _busy ? null : _save,

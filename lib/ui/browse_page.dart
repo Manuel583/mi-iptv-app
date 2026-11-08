@@ -56,9 +56,13 @@ class _BrowsePageState extends State<BrowsePage> {
             children: [
               SizedBox(
                 width: 320,
-                child: _categoryPanel(cats, sel, onOpen: (k) {
-                  setState(() => _selected = k);
-                }),
+                child: _categoryPanel(
+                  cats,
+                  sel,
+                  onOpen: (k) {
+                    setState(() => _selected = k);
+                  },
+                ),
               ),
               const VerticalDivider(width: 1),
               Expanded(
@@ -74,25 +78,37 @@ class _BrowsePageState extends State<BrowsePage> {
             ],
           );
         }
-        return _categoryPanel(cats, null, onOpen: (k) {
-          Navigator.of(context).push(MaterialPageRoute(
-            builder: (_) => CategoryChannels(mode: widget.mode, categoryKey: k),
-          ));
-        });
+        return _categoryPanel(
+          cats,
+          null,
+          onOpen: (k) {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) =>
+                    CategoryChannels(mode: widget.mode, categoryKey: k),
+              ),
+            );
+          },
+        );
       },
     );
   }
 
-  Widget _categoryPanel(List<GroupInfo> cats, String? selected,
-      {required void Function(String) onOpen}) {
+  Widget _categoryPanel(
+    List<GroupInfo> cats,
+    String? selected, {
+    required void Function(String) onOpen,
+  }) {
     final header = Padding(
       padding: const EdgeInsets.fromLTRB(12, 8, 4, 4),
       child: Row(
         children: [
           Expanded(
             child: _editingGroups
-                ? Text('Arrastra para ordenar | ojo para ocultar',
-                    style: Theme.of(context).textTheme.bodySmall)
+                ? Text(
+                    'Arrastra para ordenar | ojo para ocultar',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  )
                 : TextField(
                     controller: _filter,
                     onChanged: (_) => setState(() {}),
@@ -130,9 +146,14 @@ class _BrowsePageState extends State<BrowsePage> {
                   opacity: g.hidden ? 0.45 : 1,
                   child: ListTile(
                     leading: ReorderableDragStartListener(
-                        index: i, child: const Icon(Icons.drag_handle)),
-                    title: Text(g.name,
-                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                      index: i,
+                      child: const Icon(Icons.drag_handle),
+                    ),
+                    title: Text(
+                      g.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -140,18 +161,22 @@ class _BrowsePageState extends State<BrowsePage> {
                           tooltip: 'Renombrar',
                           icon: const Icon(Icons.edit_outlined),
                           onPressed: () async {
-                            final n = await askText(context,
-                                title: 'Renombrar grupo',
-                                initial: g.name,
-                                okText: 'Guardar');
+                            final n = await askText(
+                              context,
+                              title: 'Renombrar grupo',
+                              initial: g.name,
+                              okText: 'Guardar',
+                            );
                             if (n != null) app.renameGroup(g.key, n);
                           },
                         ),
                         IconButton(
                           tooltip: g.hidden ? 'Mostrar' : 'Ocultar',
-                          icon: Icon(g.hidden
-                              ? Icons.visibility_off_outlined
-                              : Icons.visibility_outlined),
+                          icon: Icon(
+                            g.hidden
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                          ),
                           onPressed: () => app.setGroupHidden(g.key, !g.hidden),
                         ),
                       ],
@@ -167,8 +192,11 @@ class _BrowsePageState extends State<BrowsePage> {
               icon: const Icon(Icons.restart_alt),
               label: const Text('Restablecer orden original'),
               onPressed: () async {
-                if (await confirm(context, 'Restablecer orden',
-                    'Se recuperará el orden original de grupos y canales.')) {
+                if (await confirm(
+                  context,
+                  'Restablecer orden',
+                  'Se recuperará el orden original de grupos y canales.',
+                )) {
                   app.resetGroupOrder();
                 }
               },
@@ -192,16 +220,19 @@ class _BrowsePageState extends State<BrowsePage> {
                       opacity: g.hidden ? 0.45 : 1,
                       child: ListTile(
                         selected: g.key == selected,
-                        leading: Icon(_isGroups
-                            ? Icons.folder_open_outlined
-                            : Icons.flag_outlined),
-                        title: Text(g.name,
-                            maxLines: 1, overflow: TextOverflow.ellipsis),
+                        leading: Icon(
+                          _isGroups
+                              ? Icons.folder_open_outlined
+                              : Icons.flag_outlined,
+                        ),
+                        title: Text(
+                          g.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                         trailing: Text('${g.count}'),
                         onTap: () => onOpen(g.key),
-                        onLongPress: _isGroups
-                            ? () => _groupActions(g)
-                            : null,
+                        onLongPress: _isGroups ? () => _groupActions(g) : null,
                       ),
                     );
                   },
@@ -225,15 +256,21 @@ class _BrowsePageState extends State<BrowsePage> {
               title: const Text('Renombrar grupo'),
               onTap: () async {
                 Navigator.pop(ctx);
-                final n = await askText(context,
-                    title: 'Renombrar grupo', initial: g.name, okText: 'Guardar');
+                final n = await askText(
+                  context,
+                  title: 'Renombrar grupo',
+                  initial: g.name,
+                  okText: 'Guardar',
+                );
                 if (n != null) app.renameGroup(g.key, n);
               },
             ),
             ListTile(
-              leading: Icon(g.hidden
-                  ? Icons.visibility_outlined
-                  : Icons.visibility_off_outlined),
+              leading: Icon(
+                g.hidden
+                    ? Icons.visibility_outlined
+                    : Icons.visibility_off_outlined,
+              ),
               title: Text(g.hidden ? 'Mostrar grupo' : 'Ocultar grupo'),
               onTap: () {
                 Navigator.pop(ctx);
@@ -308,7 +345,9 @@ class _CategoryChannelsState extends State<CategoryChannels> {
           ),
           if (_isGroup)
             IconButton(
-              tooltip: _editing ? 'Terminar edición' : 'Ordenar, renombrar u ocultar',
+              tooltip: _editing
+                  ? 'Terminar edición'
+                  : 'Ordenar, renombrar u ocultar',
               icon: Icon(_editing ? Icons.check : Icons.edit_outlined),
               onPressed: () => setState(() => _editing = !_editing),
             ),
@@ -332,8 +371,10 @@ class _CategoryChannelsState extends State<CategoryChannels> {
             if (_editing)
               Padding(
                 padding: const EdgeInsets.all(8),
-                child: Text('Arrastra para ordenar | lápiz para renombrar | ojo para ocultar',
-                    style: Theme.of(context).textTheme.bodySmall),
+                child: Text(
+                  'Arrastra para ordenar | lápiz para renombrar | ojo para ocultar',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
               ),
             Expanded(
               child: ChannelListView(
@@ -342,7 +383,7 @@ class _CategoryChannelsState extends State<CategoryChannels> {
                 showGroup: !_isGroup,
                 onReorder: _isGroup
                     ? (o, n) =>
-                        app.reorderChannelsInGroup(widget.categoryKey, o, n)
+                          app.reorderChannelsInGroup(widget.categoryKey, o, n)
                     : null,
               ),
             ),
@@ -358,10 +399,12 @@ class _CategoryChannelsState extends State<CategoryChannels> {
                   child: Row(
                     children: [
                       Expanded(
-                        child: Text('$title (${channels.length})',
-                            style: Theme.of(context).textTheme.titleMedium,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis),
+                        child: Text(
+                          '$title (${channels.length})',
+                          style: Theme.of(context).textTheme.titleMedium,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                       ...actions,
                     ],

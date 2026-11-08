@@ -9,9 +9,7 @@ import 'parsers.dart' show normalizeText;
 
 class EpgData {
   EpgData(this.programmes, this.nameToId);
-  EpgData.empty()
-      : programmes = {},
-        nameToId = {};
+  EpgData.empty() : programmes = {}, nameToId = {};
 
   /// id de canal (en minúsculas) -> programas ordenados por hora.
   final Map<String, List<Programme>> programmes;
@@ -73,7 +71,9 @@ DateTime? parseXmltvDate(String s) {
     if (tz != null) {
       final sign = tz.group(1) == '-' ? -1 : 1;
       final off = Duration(
-          hours: int.parse(tz.group(2)!), minutes: int.parse(tz.group(3)!));
+        hours: int.parse(tz.group(2)!),
+        minutes: int.parse(tz.group(3)!),
+      );
       dt = sign == 1 ? dt.subtract(off) : dt.add(off);
     }
     return dt.toLocal();
@@ -96,7 +96,10 @@ Future<EpgData> parseXmltvFile(String path, DateTime from, DateTime to) async {
 }
 
 Future<EpgData> parseXmltvStream(
-    Stream<String> text, DateTime from, DateTime to) async {
+  Stream<String> text,
+  DateTime from,
+  DateTime to,
+) async {
   final programmes = <String, List<Programme>>{};
   final nameToId = <String, String>{};
 
@@ -129,10 +132,12 @@ Future<EpgData> parseXmltvStream(
             progStop = parseXmltvDate(_attr(e, 'stop') ?? '');
             title = '';
             desc = '';
-            keep = progChannel != null &&
+            keep =
+                progChannel != null &&
                 progStart != null &&
-                (progStop ?? progStart.add(const Duration(hours: 1)))
-                    .isAfter(from) &&
+                (progStop ?? progStart.add(const Duration(hours: 1))).isAfter(
+                  from,
+                ) &&
                 progStart.isBefore(to);
             break;
           case 'title':
@@ -157,7 +162,9 @@ Future<EpgData> parseXmltvStream(
           case 'display-name':
             if (textTarget == 'display-name' && currentChannelId != null) {
               final k = epgNameKey(buf.toString());
-              if (k.isNotEmpty) nameToId.putIfAbsent(k, () => currentChannelId!);
+              if (k.isNotEmpty) {
+                nameToId.putIfAbsent(k, () => currentChannelId!);
+              }
             }
             textTarget = null;
             break;
@@ -176,8 +183,9 @@ Future<EpgData> parseXmltvStream(
             if (keep) {
               final start = progStart!;
               final stop = progStop ?? start.add(const Duration(hours: 1));
-              (programmes[progChannel!] ??= [])
-                  .add(Programme(start, stop, title, desc));
+              (programmes[progChannel!] ??= []).add(
+                Programme(start, stop, title, desc),
+              );
             }
             keep = false;
             break;

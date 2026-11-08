@@ -4,7 +4,15 @@ import '../app_state.dart';
 import '../models.dart';
 import 'common.dart';
 
-const _days = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
+const _days = [
+  'lunes',
+  'martes',
+  'miércoles',
+  'jueves',
+  'viernes',
+  'sábado',
+  'domingo',
+];
 
 class EpgPage extends StatelessWidget {
   const EpgPage({super.key, required this.channel});
@@ -26,7 +34,7 @@ class EpgPage extends StatelessWidget {
                   app.epgLoading
                       ? 'Cargando la guía…'
                       : 'No hay guía de programación para este canal.\n\n'
-                          'Puedes añadir un enlace de guía (XMLTV) en Ajustes o en la configuración de la lista.',
+                            'Puedes añadir un enlace de guía (XMLTV) en Ajustes o en la configuración de la lista.',
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -53,32 +61,39 @@ class EpgPage extends StatelessWidget {
                     ),
                   ListTile(
                     selected: live,
-                    leading: Text(hhmm(p.start),
-                        style: const TextStyle(fontWeight: FontWeight.bold)),
+                    leading: Text(
+                      hhmm(p.start),
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
                     title: Text(p.title.isEmpty ? 'Sin título' : p.title),
                     subtitle: live
                         ? LinearProgressIndicator(value: p.progress(now))
                         : (p.desc.isEmpty
-                            ? null
-                            : Text(p.desc,
-                                maxLines: 2, overflow: TextOverflow.ellipsis)),
+                              ? null
+                              : Text(
+                                  p.desc,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                )),
                     onTap: p.desc.isEmpty
                         ? null
                         : () => showDialog(
-                              context: context,
-                              builder: (ctx) => AlertDialog(
-                                title: Text(p.title),
-                                content: SingleChildScrollView(
-                                  child: Text(
-                                      '${hhmm(p.start)} - ${hhmm(p.stop)}\n\n${p.desc}'),
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: Text(p.title),
+                              content: SingleChildScrollView(
+                                child: Text(
+                                  '${hhmm(p.start)} - ${hhmm(p.stop)}\n\n${p.desc}',
                                 ),
-                                actions: [
-                                  TextButton(
-                                      onPressed: () => Navigator.pop(ctx),
-                                      child: const Text('Cerrar')),
-                                ],
                               ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx),
+                                  child: const Text('Cerrar'),
+                                ),
+                              ],
                             ),
+                          ),
                   ),
                 ],
               );

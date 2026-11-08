@@ -63,7 +63,9 @@ class MiIptvApp extends StatelessWidget {
           ),
           darkTheme: ThemeData(
             colorScheme: ColorScheme.fromSeed(
-                seedColor: seed, brightness: Brightness.dark),
+              seedColor: seed,
+              brightness: Brightness.dark,
+            ),
             useMaterial3: true,
           ),
           builder: (context, child) {

@@ -18,7 +18,13 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int _index = 0;
 
-  static const _titles = ['Canales', 'Países', 'Favoritos', 'Carpetas', 'Ajustes'];
+  static const _titles = [
+    'Canales',
+    'Países',
+    'Favoritos',
+    'Carpetas',
+    'Ajustes',
+  ];
 
   static const _destinations = [
     (Icons.live_tv_outlined, Icons.live_tv, 'Canales'),
@@ -57,15 +63,16 @@ class _HomePageState extends State<HomePage> {
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 12),
                 child: SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2)),
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
               ),
             IconButton(
               tooltip: 'Buscar canal',
               icon: const Icon(Icons.search),
-              onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const SearchPage())),
+              onPressed: () => Navigator.of(context)
+                  .push(MaterialPageRoute(builder: (_) => const SearchPage())),
             ),
             IconButton(
               tooltip: 'Mosaico (varios canales a la vez)',
@@ -84,10 +91,11 @@ class _HomePageState extends State<HomePage> {
                             .where((s) => s.lastError != null)
                             .map((s) => s.name);
                         showMessage(
-                            context,
-                            errors.isEmpty
-                                ? 'Listas actualizadas'
-                                : 'No se pudieron actualizar: ${errors.join(', ')}');
+                          context,
+                          errors.isEmpty
+                              ? 'Listas actualizadas'
+                              : 'No se pudieron actualizar: ${errors.join(', ')}',
+                        );
                       }
                     },
             ),
@@ -98,8 +106,10 @@ class _HomePageState extends State<HomePage> {
                   preferredSize: const Size.fromHeight(22),
                   child: Padding(
                     padding: const EdgeInsets.only(bottom: 4),
-                    child: Text(app.refreshStatus,
-                        style: Theme.of(context).textTheme.bodySmall),
+                    child: Text(
+                      app.refreshStatus,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
                   ),
                 ),
         );
@@ -161,11 +171,16 @@ class _Welcome extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.live_tv,
-                  size: 72, color: Theme.of(context).colorScheme.primary),
+              Icon(
+                Icons.live_tv,
+                size: 72,
+                color: Theme.of(context).colorScheme.primary,
+              ),
               const SizedBox(height: 16),
-              Text('Bienvenido a Mi IPTV',
-                  style: Theme.of(context).textTheme.headlineSmall),
+              Text(
+                'Bienvenido a Mi IPTV',
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
               const SizedBox(height: 8),
               const Text(
                 'Para empezar, añade tu primera lista de canales: por enlace M3U, '

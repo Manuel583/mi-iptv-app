@@ -36,11 +36,14 @@ class SettingsPage extends StatelessWidget {
         final s = app.settings;
         final theme = Theme.of(context);
         Widget section(String t) => Padding(
-              padding: const EdgeInsets.fromLTRB(16, 20, 16, 4),
-              child: Text(t,
-                  style: theme.textTheme.titleSmall
-                      ?.copyWith(color: theme.colorScheme.primary)),
-            );
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 4),
+          child: Text(
+            t,
+            style: theme.textTheme.titleSmall?.copyWith(
+              color: theme.colorScheme.primary,
+            ),
+          ),
+        );
         return ListView(
           padding: const EdgeInsets.only(bottom: 32),
           children: [
@@ -49,10 +52,11 @@ class SettingsPage extends StatelessWidget {
               leading: const Icon(Icons.playlist_play),
               title: const Text('Mis listas'),
               subtitle: Text(
-                  '${app.sources.length} listas | ${app.allChannels.length} canales'),
+                '${app.sources.length} listas | ${app.allChannels.length} canales',
+              ),
               trailing: const Icon(Icons.chevron_right),
-              onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const SourcesPage())),
+              onTap: () => Navigator.of(context)
+                  .push(MaterialPageRoute(builder: (_) => const SourcesPage())),
             ),
             ListTile(
               leading: const Icon(Icons.update),
@@ -76,17 +80,22 @@ class SettingsPage extends StatelessWidget {
             ListTile(
               leading: const Icon(Icons.calendar_month_outlined),
               title: const Text('Guías de programación (EPG)'),
-              subtitle: Text(s.epgUrls.isEmpty
-                  ? 'Sólo las incluidas en tus listas'
-                  : '${s.epgUrls.length} enlaces XMLTV añadidos'),
+              subtitle: Text(
+                s.epgUrls.isEmpty
+                    ? 'Sólo las incluidas en tus listas'
+                    : '${s.epgUrls.length} enlaces XMLTV añadidos',
+              ),
               trailing: const Icon(Icons.chevron_right),
-              onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const _EpgUrlsPage())),
+              onTap: () => Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const _EpgUrlsPage())),
             ),
             SwitchListTile(
               secondary: const Icon(Icons.visibility_outlined),
               title: const Text('Mostrar canales y grupos ocultos'),
-              subtitle: const Text('Aparecen atenuados para poder recuperarlos'),
+              subtitle: const Text(
+                'Aparecen atenuados para poder recuperarlos',
+              ),
               value: s.showHidden,
               onChanged: (v) => app.updateSettings((s) => s.showHidden = v),
             ),
@@ -136,8 +145,7 @@ class SettingsPage extends StatelessWidget {
             ),
             ListTile(
               leading: const Icon(Icons.format_size),
-              title: Text(
-                  'Tamaño de letra: ${(s.textScale * 100).round()} %'),
+              title: Text('Tamaño de letra: ${(s.textScale * 100).round()} %'),
               subtitle: Slider(
                 value: s.textScale,
                 min: 0.8,
@@ -160,7 +168,8 @@ class SettingsPage extends StatelessWidget {
               secondary: const Icon(Icons.memory),
               title: const Text('Aceleración por hardware'),
               subtitle: const Text(
-                  'Desactívala sólo si ves la imagen verde, negra o a saltos'),
+                'Desactívala sólo si ves la imagen verde, negra o a saltos',
+              ),
               value: s.hardwareDecoding,
               onChanged: (v) =>
                   app.updateSettings((s) => s.hardwareDecoding = v),
@@ -176,7 +185,8 @@ class SettingsPage extends StatelessWidget {
                 secondary: const Icon(Icons.headphones_outlined),
                 title: const Text('Seguir sonando en segundo plano'),
                 subtitle: const Text(
-                    'Muestra una notificación con el botón "Detener"'),
+                  'Muestra una notificación con el botón "Detener"',
+                ),
                 value: s.backgroundAudio,
                 onChanged: (v) =>
                     app.updateSettings((s) => s.backgroundAudio = v),
@@ -185,16 +195,22 @@ class SettingsPage extends StatelessWidget {
             ListTile(
               leading: const Icon(Icons.badge_outlined),
               title: const Text('Identificador del reproductor (User-Agent)'),
-              subtitle: Text(s.userAgent.isEmpty
-                  ? 'Predeterminado ($defaultUserAgent)'
-                  : s.userAgent),
+              subtitle: Text(
+                s.userAgent.isEmpty
+                    ? 'Predeterminado ($defaultUserAgent)'
+                    : s.userAgent,
+              ),
               onTap: () async {
-                final v = await askText(context,
-                    title: 'User-Agent',
-                    label: 'Déjalo vacío para usar el predeterminado',
-                    initial: s.userAgent,
-                    okText: 'Guardar');
-                if (v != null) app.updateSettings((s) => s.userAgent = v.trim());
+                final v = await askText(
+                  context,
+                  title: 'User-Agent',
+                  label: 'Déjalo vacío para usar el predeterminado',
+                  initial: s.userAgent,
+                  okText: 'Guardar',
+                );
+                if (v != null) {
+                  app.updateSettings((s) => s.userAgent = v.trim());
+                }
               },
             ),
 
@@ -203,7 +219,8 @@ class SettingsPage extends StatelessWidget {
               leading: const Icon(Icons.file_upload_outlined),
               title: const Text('Exportar configuración'),
               subtitle: const Text(
-                  'Guarda listas, favoritos, carpetas y ajustes en un archivo'),
+                'Guarda listas, favoritos, carpetas y ajustes en un archivo',
+              ),
               onTap: () => exportConfigFlow(context),
             ),
             ListTile(
@@ -218,9 +235,10 @@ class SettingsPage extends StatelessWidget {
               leading: Icon(Icons.info_outline),
               title: Text('Mi IPTV'),
               subtitle: Text(
-                  'Reproductor personal. Atajos en Windows: ↑/↓ cambiar canal | '
-                  'Espacio pausa | F pantalla completa | M silencio | '
-                  'A audio | S subtítulos | P miniventana | Esc salir'),
+                'Reproductor personal. Atajos en Windows: ↑/↓ cambiar canal | '
+                'Espacio pausa | F pantalla completa | M silencio | '
+                'A audio | S subtítulos | P miniventana | Esc salir',
+              ),
             ),
           ],
         );
@@ -250,8 +268,10 @@ Future<void> exportConfigFlow(BuildContext context) async {
       }
     }
     if (context.mounted) {
-      showMessage(context,
-          'Configuración exportada. Contiene tus contraseñas: guárdala en un lugar seguro.');
+      showMessage(
+        context,
+        'Configuración exportada. Contiene tus contraseñas: guárdala en un lugar seguro.',
+      );
     }
   } catch (e) {
     if (context.mounted) showMessage(context, 'No se pudo exportar: $e');
@@ -267,7 +287,9 @@ Future<void> importConfigFlow(BuildContext context) async {
   );
   if (!ok) return;
   try {
-    final f = await FilePicker.pickFile(dialogTitle: 'Elige el archivo de configuración');
+    final f = await FilePicker.pickFile(
+      dialogTitle: 'Elige el archivo de configuración',
+    );
     if (f == null) return;
     final bytes = await f.readAsBytes();
     if (context.mounted) showMessage(context, 'Importando y cargando listas…');
@@ -301,10 +323,12 @@ class _EpgUrlsPage extends StatelessWidget {
         icon: const Icon(Icons.add),
         label: const Text('Añadir enlace XMLTV'),
         onPressed: () async {
-          final v = await askText(context,
-              title: 'Enlace de guía XMLTV',
-              label: 'https://…/guia.xml o .xml.gz',
-              okText: 'Añadir');
+          final v = await askText(
+            context,
+            title: 'Enlace de guía XMLTV',
+            label: 'https://…/guia.xml o .xml.gz',
+            okText: 'Añadir',
+          );
           if (v != null && v.trim().startsWith('http')) {
             app.updateSettings((s) => s.epgUrls.add(v.trim()));
             await app.refreshEpg();
@@ -324,18 +348,23 @@ class _EpgUrlsPage extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: 88),
             children: [
               ListTile(
-                title: Text(app.epgLoading
-                    ? 'Descargando guía…'
-                    : 'Última actualización: ${last == null ? 'nunca' : '${last.day}/${last.month} ${hhmm(last)}'}'),
+                title: Text(
+                  app.epgLoading
+                      ? 'Descargando guía…'
+                      : 'Última actualización: ${last == null ? 'nunca' : '${last.day}/${last.month} ${hhmm(last)}'}',
+                ),
                 subtitle: Text(
-                    '${app.epg.programmes.length} canales con programación'),
+                  '${app.epg.programmes.length} canales con programación',
+                ),
               ),
               const Divider(),
               const ListTile(title: Text('Enlaces añadidos por ti')),
               if (urls.isEmpty)
                 const ListTile(
-                    subtitle: Text(
-                        'Ninguno. Pulsa "Añadir enlace XMLTV" si tu proveedor te dio uno.')),
+                  subtitle: Text(
+                    'Ninguno. Pulsa "Añadir enlace XMLTV" si tu proveedor te dio uno.',
+                  ),
+                ),
               for (final u in urls)
                 ListTile(
                   leading: const Icon(Icons.link),
@@ -349,16 +378,16 @@ class _EpgUrlsPage extends StatelessWidget {
                 ),
               const Divider(),
               const ListTile(title: Text('Incluidos en tus listas')),
-              if (included.isEmpty)
-                const ListTile(subtitle: Text('Ninguno')),
+              if (included.isEmpty) const ListTile(subtitle: Text('Ninguno')),
               for (final (name, u) in included)
                 ListTile(
                   leading: const Icon(Icons.playlist_play),
                   title: Text(name),
                   subtitle: Text(
-                      u.replaceAll(RegExp(r'password=[^&]*'), 'password=***'),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis),
+                    u.replaceAll(RegExp(r'password=[^&]*'), 'password=***'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
             ],
           );

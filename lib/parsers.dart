@@ -99,24 +99,26 @@ ParsedPlaylist parseM3u(String content, String sourceId) {
         ? attrs['group-title']!
         : extGroup;
     final tvgId = attrs['tvg-id'] ?? '';
-    channels.add(Channel(
-      key: keys.make(sourceId, group, chName),
-      sourceId: sourceId,
-      name: chName,
-      url: url,
-      logo: attrs['tvg-logo'] ?? attrs['logo'] ?? '',
-      group: group,
-      tvgId: tvgId,
-      tvgName: attrs['tvg-name'] ?? '',
-      country: detectCountry(
-        tvgCountry: attrs['tvg-country'] ?? '',
-        tvgId: tvgId,
-        group: group,
+    channels.add(
+      Channel(
+        key: keys.make(sourceId, group, chName),
+        sourceId: sourceId,
         name: chName,
+        url: url,
+        logo: attrs['tvg-logo'] ?? attrs['logo'] ?? '',
+        group: group,
+        tvgId: tvgId,
+        tvgName: attrs['tvg-name'] ?? '',
+        country: detectCountry(
+          tvgCountry: attrs['tvg-country'] ?? '',
+          tvgId: tvgId,
+          group: group,
+          name: chName,
+        ),
+        userAgent: ua.isNotEmpty ? ua : (attrs['http-user-agent'] ?? ''),
+        referrer: ref.isNotEmpty ? ref : (attrs['http-referrer'] ?? ''),
       ),
-      userAgent: ua.isNotEmpty ? ua : (attrs['http-user-agent'] ?? ''),
-      referrer: ref.isNotEmpty ? ref : (attrs['http-referrer'] ?? ''),
-    ));
+    );
     reset();
   }
   return ParsedPlaylist(channels, epgUrl);
@@ -170,7 +172,8 @@ List<Channel> parseXtream({
   final decoded = jsonDecode(streamsJson);
   if (decoded is! List) {
     throw const FormatException(
-        'El servidor no ha devuelto la lista de canales. Revisa usuario y contraseña.');
+      'El servidor no ha devuelto la lista de canales. Revisa usuario y contraseña.',
+    );
   }
   final keys = _KeyMaker();
   final out = <Channel>[];
@@ -184,16 +187,18 @@ List<Channel> parseXtream({
     final name = '${s['name'] ?? ''}'.trim();
     final group = cats['${s['category_id']}'] ?? '';
     final tvgId = '${s['epg_channel_id'] ?? ''}'.trim();
-    out.add(Channel(
-      key: keys.make(sourceId, group, name),
-      sourceId: sourceId,
-      name: name.isEmpty ? 'Canal $id' : name,
-      url: '$server/live/$u/$p/$id.$ext',
-      logo: '${s['stream_icon'] ?? ''}',
-      group: group,
-      tvgId: tvgId == 'null' ? '' : tvgId,
-      country: detectCountry(tvgId: tvgId, group: group, name: name),
-    ));
+    out.add(
+      Channel(
+        key: keys.make(sourceId, group, name),
+        sourceId: sourceId,
+        name: name.isEmpty ? 'Canal $id' : name,
+        url: '$server/live/$u/$p/$id.$ext',
+        logo: '${s['stream_icon'] ?? ''}',
+        group: group,
+        tvgId: tvgId == 'null' ? '' : tvgId,
+        country: detectCountry(tvgId: tvgId, group: group, name: name),
+      ),
+    );
   }
   return out;
 }

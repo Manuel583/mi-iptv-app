@@ -93,7 +93,8 @@ class _ChannelPickerState extends State<_ChannelPicker> {
             controller: _ctrl,
             autofocus: true,
             onChanged: (q) => setState(
-                () => _list = q.trim().isEmpty ? _initial() : app.search(q)),
+              () => _list = q.trim().isEmpty ? _initial() : app.search(q),
+            ),
             decoration: const InputDecoration(
               prefixIcon: Icon(Icons.search),
               hintText: 'Buscar canal (se muestran tus favoritos)',
@@ -110,10 +111,16 @@ class _ChannelPickerState extends State<_ChannelPicker> {
                     final c = _list[i];
                     return ListTile(
                       leading: ChannelLogo(c, size: 36),
-                      title: Text(app.channelName(c),
-                          maxLines: 1, overflow: TextOverflow.ellipsis),
-                      subtitle: Text(app.groupName(c.group),
-                          maxLines: 1, overflow: TextOverflow.ellipsis),
+                      title: Text(
+                        app.channelName(c),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      subtitle: Text(
+                        app.groupName(c.group),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                       onTap: () => Navigator.pop(context, c),
                     );
                   },
@@ -124,8 +131,9 @@ class _ChannelPickerState extends State<_ChannelPicker> {
           child: Align(
             alignment: Alignment.centerRight,
             child: TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancelar')),
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancelar'),
+            ),
           ),
         ),
       ],

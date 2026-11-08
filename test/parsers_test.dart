@@ -48,8 +48,7 @@ http://example.com/la1-backup.m3u8
   test('Lee respuestas de Xtream Codes', () {
     final list = parseXtream(
       categoriesJson: '[{"category_id":"1","category_name":"USA News"}]',
-      streamsJson:
-          '[{"name":"CNN","stream_id":55,"stream_icon":"","epg_channel_id":"cnn.us","category_id":"1"}]',
+      streamsJson: '[{"name":"CNN","stream_id":55,"stream_icon":"","epg_channel_id":"cnn.us","category_id":"1"}]',
       sourceId: 'x',
       server: 'http://srv:8080',
       username: 'yo',
@@ -61,7 +60,8 @@ http://example.com/la1-backup.m3u8
     expect(list.single.country, 'Estados Unidos');
     expect(normalizeServer('srv.com:8080/'), 'http://srv.com:8080');
     final x = extractXtreamFromUrl(
-        'http://srv.com:8080/get.php?username=a&password=b&type=m3u_plus');
+      'http://srv.com:8080/get.php?username=a&password=b&type=m3u_plus',
+    );
     expect(x, ('http://srv.com:8080', 'a', 'b'));
   });
 
@@ -70,7 +70,8 @@ http://example.com/la1-backup.m3u8
     String fmt(DateTime d) =>
         '${d.year}${d.month.toString().padLeft(2, '0')}${d.day.toString().padLeft(2, '0')}'
         '${d.hour.toString().padLeft(2, '0')}${d.minute.toString().padLeft(2, '0')}00 +0000';
-    final xml = '''<?xml version="1.0" encoding="UTF-8"?>
+    final xml =
+        '''<?xml version="1.0" encoding="UTF-8"?>
 <tv>
   <channel id="La1.es"><display-name>La 1 HD</display-name></channel>
   <programme start="${fmt(now.subtract(const Duration(minutes: 30)))}" stop="${fmt(now.add(const Duration(minutes: 30)))}" channel="La1.es">
@@ -81,9 +82,11 @@ http://example.com/la1-backup.m3u8
   </programme>
   <programme start="20000101000000 +0000" stop="20000101010000 +0000" channel="La1.es"><title>Viejo</title></programme>
 </tv>''';
-    final data = await parseXmltvStream(Stream.value(xml),
-        DateTime.now().subtract(const Duration(hours: 3)),
-        DateTime.now().add(const Duration(days: 2)));
+    final data = await parseXmltvStream(
+      Stream.value(xml),
+      DateTime.now().subtract(const Duration(hours: 3)),
+      DateTime.now().add(const Duration(days: 2)),
+    );
     final list = data.programmes['la1.es']!;
     expect(list.length, 2);
     final (cur, next) = nowAndNext(list, DateTime.now());

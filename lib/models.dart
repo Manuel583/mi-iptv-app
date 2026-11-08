@@ -56,7 +56,8 @@ class PlaylistSource {
     if (useIncludedEpg) {
       if (type == SourceType.xtream && server.isNotEmpty) {
         out.add(
-            '$server/xmltv.php?username=${Uri.encodeQueryComponent(username)}&password=${Uri.encodeQueryComponent(password)}');
+          '$server/xmltv.php?username=${Uri.encodeQueryComponent(username)}&password=${Uri.encodeQueryComponent(password)}',
+        );
       } else if (detectedEpgUrl.isNotEmpty) {
         for (final u in detectedEpgUrl.split(',')) {
           if (u.trim().startsWith('http')) out.add(u.trim());
@@ -67,43 +68,45 @@ class PlaylistSource {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'type': type.name,
-        'url': url,
-        'server': server,
-        'username': username,
-        'password': password,
-        'xtreamOutput': xtreamOutput,
-        'epgUrl': epgUrl,
-        'useIncludedEpg': useIncludedEpg,
-        'detectedEpgUrl': detectedEpgUrl,
-        'enabled': enabled,
-        'lastUpdated': lastUpdated?.toIso8601String(),
-        'lastError': lastError,
-        'channelCount': channelCount,
-      };
+    'id': id,
+    'name': name,
+    'type': type.name,
+    'url': url,
+    'server': server,
+    'username': username,
+    'password': password,
+    'xtreamOutput': xtreamOutput,
+    'epgUrl': epgUrl,
+    'useIncludedEpg': useIncludedEpg,
+    'detectedEpgUrl': detectedEpgUrl,
+    'enabled': enabled,
+    'lastUpdated': lastUpdated?.toIso8601String(),
+    'lastError': lastError,
+    'channelCount': channelCount,
+  };
 
   factory PlaylistSource.fromJson(Map<String, dynamic> j) => PlaylistSource(
-        id: j['id'] as String,
-        name: (j['name'] ?? 'Lista') as String,
-        type: SourceType.values.firstWhere((t) => t.name == j['type'],
-            orElse: () => SourceType.m3uUrl),
-        url: (j['url'] ?? '') as String,
-        server: (j['server'] ?? '') as String,
-        username: (j['username'] ?? '') as String,
-        password: (j['password'] ?? '') as String,
-        xtreamOutput: (j['xtreamOutput'] ?? 'ts') as String,
-        epgUrl: (j['epgUrl'] ?? '') as String,
-        useIncludedEpg: (j['useIncludedEpg'] ?? true) as bool,
-        detectedEpgUrl: (j['detectedEpgUrl'] ?? '') as String,
-        enabled: (j['enabled'] ?? true) as bool,
-        lastUpdated: j['lastUpdated'] == null
-            ? null
-            : DateTime.tryParse(j['lastUpdated'] as String),
-        lastError: j['lastError'] as String?,
-        channelCount: (j['channelCount'] ?? 0) as int,
-      );
+    id: j['id'] as String,
+    name: (j['name'] ?? 'Lista') as String,
+    type: SourceType.values.firstWhere(
+      (t) => t.name == j['type'],
+      orElse: () => SourceType.m3uUrl,
+    ),
+    url: (j['url'] ?? '') as String,
+    server: (j['server'] ?? '') as String,
+    username: (j['username'] ?? '') as String,
+    password: (j['password'] ?? '') as String,
+    xtreamOutput: (j['xtreamOutput'] ?? 'ts') as String,
+    epgUrl: (j['epgUrl'] ?? '') as String,
+    useIncludedEpg: (j['useIncludedEpg'] ?? true) as bool,
+    detectedEpgUrl: (j['detectedEpgUrl'] ?? '') as String,
+    enabled: (j['enabled'] ?? true) as bool,
+    lastUpdated: j['lastUpdated'] == null
+        ? null
+        : DateTime.tryParse(j['lastUpdated'] as String),
+    lastError: j['lastError'] as String?,
+    channelCount: (j['channelCount'] ?? 0) as int,
+  );
 }
 
 /// Un canal de televisión.
@@ -136,51 +139,54 @@ class Channel {
   final String referrer;
 
   Map<String, dynamic> toJson() => {
-        'k': key,
-        's': sourceId,
-        'n': name,
-        'u': url,
-        if (logo.isNotEmpty) 'l': logo,
-        if (group.isNotEmpty) 'g': group,
-        if (tvgId.isNotEmpty) 'i': tvgId,
-        if (tvgName.isNotEmpty) 't': tvgName,
-        if (country.isNotEmpty) 'c': country,
-        if (userAgent.isNotEmpty) 'a': userAgent,
-        if (referrer.isNotEmpty) 'r': referrer,
-      };
+    'k': key,
+    's': sourceId,
+    'n': name,
+    'u': url,
+    if (logo.isNotEmpty) 'l': logo,
+    if (group.isNotEmpty) 'g': group,
+    if (tvgId.isNotEmpty) 'i': tvgId,
+    if (tvgName.isNotEmpty) 't': tvgName,
+    if (country.isNotEmpty) 'c': country,
+    if (userAgent.isNotEmpty) 'a': userAgent,
+    if (referrer.isNotEmpty) 'r': referrer,
+  };
 
   factory Channel.fromJson(Map<String, dynamic> j) => Channel(
-        key: j['k'] as String,
-        sourceId: j['s'] as String,
-        name: j['n'] as String,
-        url: j['u'] as String,
-        logo: (j['l'] ?? '') as String,
-        group: (j['g'] ?? '') as String,
-        tvgId: (j['i'] ?? '') as String,
-        tvgName: (j['t'] ?? '') as String,
-        country: (j['c'] ?? '') as String,
-        userAgent: (j['a'] ?? '') as String,
-        referrer: (j['r'] ?? '') as String,
-      );
+    key: j['k'] as String,
+    sourceId: j['s'] as String,
+    name: j['n'] as String,
+    url: j['u'] as String,
+    logo: (j['l'] ?? '') as String,
+    group: (j['g'] ?? '') as String,
+    tvgId: (j['i'] ?? '') as String,
+    tvgName: (j['t'] ?? '') as String,
+    country: (j['c'] ?? '') as String,
+    userAgent: (j['a'] ?? '') as String,
+    referrer: (j['r'] ?? '') as String,
+  );
 }
 
 /// Carpeta personal creada por el usuario.
 class Folder {
   Folder({required this.id, required this.name, List<String>? channelKeys})
-      : channelKeys = channelKeys ?? [];
+    : channelKeys = channelKeys ?? [];
 
   final String id;
   String name;
   final List<String> channelKeys;
 
-  Map<String, dynamic> toJson() =>
-      {'id': id, 'name': name, 'channels': channelKeys};
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'channels': channelKeys,
+  };
 
   factory Folder.fromJson(Map<String, dynamic> j) => Folder(
-        id: j['id'] as String,
-        name: j['name'] as String,
-        channelKeys: List<String>.from((j['channels'] ?? []) as List),
-      );
+    id: j['id'] as String,
+    name: j['name'] as String,
+    channelKeys: List<String>.from((j['channels'] ?? []) as List),
+  );
 }
 
 /// Personalización: nombres, orden, ocultos, favoritos y carpetas.
@@ -195,27 +201,29 @@ class Customization {
   List<Folder> folders = [];
 
   Map<String, dynamic> toJson() => {
-        'channelNames': channelNames,
-        'hiddenChannels': hiddenChannels.toList(),
-        'groupNames': groupNames,
-        'hiddenGroups': hiddenGroups.toList(),
-        'groupOrder': groupOrder,
-        'channelOrder': channelOrder,
-        'favorites': favorites,
-        'folders': folders.map((f) => f.toJson()).toList(),
-      };
+    'channelNames': channelNames,
+    'hiddenChannels': hiddenChannels.toList(),
+    'groupNames': groupNames,
+    'hiddenGroups': hiddenGroups.toList(),
+    'groupOrder': groupOrder,
+    'channelOrder': channelOrder,
+    'favorites': favorites,
+    'folders': folders.map((f) => f.toJson()).toList(),
+  };
 
   static Customization fromJson(Map<String, dynamic>? j) {
     final c = Customization();
     if (j == null) return c;
     c.channelNames = Map<String, String>.from((j['channelNames'] ?? {}) as Map);
-    c.hiddenChannels =
-        Set<String>.from((j['hiddenChannels'] ?? const []) as List);
+    c.hiddenChannels = Set<String>.from(
+      (j['hiddenChannels'] ?? const []) as List,
+    );
     c.groupNames = Map<String, String>.from((j['groupNames'] ?? {}) as Map);
     c.hiddenGroups = Set<String>.from((j['hiddenGroups'] ?? const []) as List);
     c.groupOrder = List<String>.from((j['groupOrder'] ?? const []) as List);
     c.channelOrder = ((j['channelOrder'] ?? {}) as Map).map(
-        (k, v) => MapEntry(k as String, List<String>.from(v as List)));
+      (k, v) => MapEntry(k as String, List<String>.from(v as List)),
+    );
     c.favorites = List<String>.from((j['favorites'] ?? const []) as List);
     c.folders = ((j['folders'] ?? const []) as List)
         .map((f) => Folder.fromJson(Map<String, dynamic>.from(f as Map)))
@@ -242,21 +250,21 @@ class AppSettings {
   String lastChannelKey = '';
 
   Map<String, dynamic> toJson() => {
-        'themeMode': themeMode,
-        'seedColor': seedColor,
-        'textScale': textScale,
-        'autoRefreshHours': autoRefreshHours,
-        'epgUrls': epgUrls,
-        'userAgent': userAgent,
-        'showHidden': showHidden,
-        'reconnect': reconnect,
-        'pipOnLeave': pipOnLeave,
-        'backgroundAudio': backgroundAudio,
-        'hardwareDecoding': hardwareDecoding,
-        'lastRefresh': lastRefresh?.toIso8601String(),
-        'lastEpgRefresh': lastEpgRefresh?.toIso8601String(),
-        'lastChannelKey': lastChannelKey,
-      };
+    'themeMode': themeMode,
+    'seedColor': seedColor,
+    'textScale': textScale,
+    'autoRefreshHours': autoRefreshHours,
+    'epgUrls': epgUrls,
+    'userAgent': userAgent,
+    'showHidden': showHidden,
+    'reconnect': reconnect,
+    'pipOnLeave': pipOnLeave,
+    'backgroundAudio': backgroundAudio,
+    'hardwareDecoding': hardwareDecoding,
+    'lastRefresh': lastRefresh?.toIso8601String(),
+    'lastEpgRefresh': lastEpgRefresh?.toIso8601String(),
+    'lastChannelKey': lastChannelKey,
+  };
 
   static AppSettings fromJson(Map<String, dynamic>? j) {
     final s = AppSettings();

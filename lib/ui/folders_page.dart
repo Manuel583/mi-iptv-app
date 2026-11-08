@@ -40,8 +40,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                 editing: _editing,
                 showGroup: true,
                 onReorder: app.reorderFavorites,
-                emptyText:
-                    'Aún no tienes favoritos.\nPulsa la estrella de cualquier canal para añadirlo aquí.',
+                emptyText: 'Aún no tienes favoritos.\nPulsa la estrella de cualquier canal para añadirlo aquí.',
               ),
             ),
           ],
@@ -70,7 +69,8 @@ class _Toolbar extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-              child: Text(text, style: Theme.of(context).textTheme.bodyMedium)),
+            child: Text(text, style: Theme.of(context).textTheme.bodyMedium),
+          ),
           IconButton(
             tooltip: 'Ver en mosaico',
             icon: const Icon(Icons.grid_view),
@@ -98,8 +98,11 @@ class _FoldersPageState extends State<FoldersPage> {
   bool _editing = false;
 
   Future<void> _create() async {
-    final name = await askText(context,
-        title: 'Nueva carpeta', label: 'Nombre (p. ej. "Oriente Medio")');
+    final name = await askText(
+      context,
+      title: 'Nueva carpeta',
+      label: 'Nombre (p. ej. "Oriente Medio")',
+    );
     if (name != null && name.trim().isNotEmpty) app.createFolder(name);
   }
 
@@ -153,39 +156,50 @@ class _FoldersPageState extends State<FoldersPage> {
                             leading: _editing
                                 ? ReorderableDragStartListener(
                                     index: i,
-                                    child: const Icon(Icons.drag_handle))
+                                    child: const Icon(Icons.drag_handle),
+                                  )
                                 : const Icon(Icons.folder),
                             title: Text(f.name),
-                            subtitle:
-                                Text('${app.folderChannels(f).length} canales'),
+                            subtitle: Text(
+                              '${app.folderChannels(f).length} canales',
+                            ),
                             onTap: () => Navigator.of(context).push(
-                                MaterialPageRoute(
-                                    builder: (_) => FolderPage(folder: f))),
+                              MaterialPageRoute(
+                                builder: (_) => FolderPage(folder: f),
+                              ),
+                            ),
                             trailing: PopupMenuButton<String>(
                               onSelected: (v) async {
                                 if (v == 'rename') {
-                                  final n = await askText(context,
-                                      title: 'Renombrar carpeta',
-                                      initial: f.name,
-                                      okText: 'Guardar');
+                                  final n = await askText(
+                                    context,
+                                    title: 'Renombrar carpeta',
+                                    initial: f.name,
+                                    okText: 'Guardar',
+                                  );
                                   if (n != null && n.trim().isNotEmpty) {
                                     app.renameFolder(f, n);
                                   }
                                 } else if (v == 'delete') {
                                   if (await confirm(
-                                      context,
-                                      'Eliminar carpeta',
-                                      '¿Eliminar "${f.name}"? Los canales no se borran.',
-                                      ok: 'Eliminar')) {
+                                    context,
+                                    'Eliminar carpeta',
+                                    '¿Eliminar "${f.name}"? Los canales no se borran.',
+                                    ok: 'Eliminar',
+                                  )) {
                                     app.deleteFolder(f);
                                   }
                                 }
                               },
                               itemBuilder: (_) => const [
                                 PopupMenuItem(
-                                    value: 'rename', child: Text('Renombrar')),
+                                  value: 'rename',
+                                  child: Text('Renombrar'),
+                                ),
                                 PopupMenuItem(
-                                    value: 'delete', child: Text('Eliminar')),
+                                  value: 'delete',
+                                  child: Text('Eliminar'),
+                                ),
                               ],
                             ),
                           );
@@ -243,8 +257,7 @@ class _FolderPageState extends State<FolderPage> {
             folder: widget.folder,
             showGroup: true,
             onReorder: (o, n) => app.reorderFolderChannels(widget.folder, o, n),
-            emptyText:
-                'Esta carpeta está vacía.\nEn cualquier canal pulsa los tres puntos y elige "Añadir a una carpeta".',
+            emptyText: 'Esta carpeta está vacía.\nEn cualquier canal pulsa los tres puntos y elige "Añadir a una carpeta".',
           ),
         );
       },

@@ -21,9 +21,9 @@ class MosaicPage extends StatefulWidget {
 
 class _Cell {
   _Cell()
-      : player = Player(
-            configuration:
-                const PlayerConfiguration(bufferSize: 16 * 1024 * 1024)) {
+    : player = Player(
+        configuration: const PlayerConfiguration(bufferSize: 16 * 1024 * 1024),
+      ) {
     video = VideoController(
       player,
       configuration: VideoControllerConfiguration(
@@ -53,12 +53,16 @@ class _MosaicPageState extends State<MosaicPage> {
     for (var i = 0; i < 4; i++) {
       final cell = _Cell();
       cell.subs.add(cell.player.stream.error.listen((_) => _retryLater(cell)));
-      cell.subs.add(cell.player.stream.completed.listen((d) {
-        if (d) _retryLater(cell);
-      }));
-      cell.subs.add(cell.player.stream.buffering.listen((_) {
-        if (mounted) setState(() {});
-      }));
+      cell.subs.add(
+        cell.player.stream.completed.listen((d) {
+          if (d) _retryLater(cell);
+        }),
+      );
+      cell.subs.add(
+        cell.player.stream.buffering.listen((_) {
+          if (mounted) setState(() {});
+        }),
+      );
       _cells.add(cell);
     }
     _init();
@@ -137,9 +141,11 @@ class _MosaicPageState extends State<MosaicPage> {
   void _openSingle(int i) {
     final c = _cells[i].channel;
     if (c == null) return;
-    Navigator.of(context).pushReplacement(MaterialPageRoute(
-      builder: (_) => PlayerPage(channels: [c], initialIndex: 0),
-    ));
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => PlayerPage(channels: [c], initialIndex: 0),
+      ),
+    );
   }
 
   @override
@@ -198,15 +204,21 @@ class _MosaicPageState extends State<MosaicPage> {
               return Column(
                 children: [
                   Expanded(
-                      child: Row(children: [
-                    Expanded(child: _cell(0)),
-                    Expanded(child: _cell(1)),
-                  ])),
+                    child: Row(
+                      children: [
+                        Expanded(child: _cell(0)),
+                        Expanded(child: _cell(1)),
+                      ],
+                    ),
+                  ),
                   Expanded(
-                      child: Row(children: [
-                    Expanded(child: _cell(2)),
-                    Expanded(child: _cell(3)),
-                  ])),
+                    child: Row(
+                      children: [
+                        Expanded(child: _cell(2)),
+                        Expanded(child: _cell(3)),
+                      ],
+                    ),
+                  ),
                 ],
               );
             },
@@ -224,14 +236,18 @@ class _MosaicPageState extends State<MosaicPage> {
       margin: const EdgeInsets.all(2),
       decoration: BoxDecoration(
         border: Border.all(
-            color: active ? cs.primary : Colors.white12, width: active ? 3 : 1),
+          color: active ? cs.primary : Colors.white12,
+          width: active ? 3 : 1,
+        ),
       ),
       child: cell.channel == null
           ? Center(
               child: TextButton.icon(
                 icon: const Icon(Icons.add, color: Colors.white),
-                label: const Text('Elegir canal',
-                    style: TextStyle(color: Colors.white)),
+                label: const Text(
+                  'Elegir canal',
+                  style: TextStyle(color: Colors.white),
+                ),
                 onPressed: () => _pick(i),
               ),
             )
@@ -252,11 +268,15 @@ class _MosaicPageState extends State<MosaicPage> {
                 ),
                 if (cell.player.state.buffering || cell.reconnecting)
                   const Center(
-                      child: SizedBox(
-                          width: 28,
-                          height: 28,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white70))),
+                    child: SizedBox(
+                      width: 28,
+                      height: 28,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ),
                 Positioned(
                   left: 0,
                   right: 0,
@@ -266,9 +286,11 @@ class _MosaicPageState extends State<MosaicPage> {
                     padding: const EdgeInsets.symmetric(horizontal: 6),
                     child: Row(
                       children: [
-                        Icon(active ? Icons.volume_up : Icons.volume_off,
-                            size: 16,
-                            color: active ? cs.primary : Colors.white54),
+                        Icon(
+                          active ? Icons.volume_up : Icons.volume_off,
+                          size: 16,
+                          color: active ? cs.primary : Colors.white54,
+                        ),
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
@@ -276,7 +298,9 @@ class _MosaicPageState extends State<MosaicPage> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                                color: Colors.white, fontSize: 13),
+                              color: Colors.white,
+                              fontSize: 13,
+                            ),
                           ),
                         ),
                         IconButton(
