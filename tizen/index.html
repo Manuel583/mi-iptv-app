@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=1920, height=1080, user-scalable=no">
+  <title>Mi IPTV</title>
+  <link rel="stylesheet" href="css/app.css">
+  <!-- Biblioteca de Samsung con el reproductor AVPlay (solo existe en el televisor). -->
+  <script src="$WEBAPIS/webapis/webapis.js"></script>
+</head>
+<body>
+  <!-- Vídeo: en el televisor se usa <object> (AVPlay); en un navegador, <video>. -->
+  <object id="av-player" type="application/avplayer"></object>
+  <video id="html-player" playsinline></video>
+
+  <div id="app">
+    <!-- Pantalla de canales -->
+    <section id="screen-browse" class="screen">
+      <header class="topbar">
+        <div class="brand"><img src="icon.png" alt=""> Mi IPTV</div>
+        <div id="clock" class="clock"></div>
+      </header>
+      <div class="columns">
+        <div class="col col-cats"><div class="col-title">Categorías</div><div id="cats" class="list"></div></div>
+        <div class="col col-chans"><div id="chans-title" class="col-title">Canales</div><div id="chans" class="list"></div></div>
+        <div class="col col-info" id="info-panel"></div>
+      </div>
+      <footer class="hints">
+        <span><b class="k">OK</b> Ver</span>
+        <span><b class="k red">&nbsp;</b> Favorito</span>
+        <span><b class="k green">&nbsp;</b> Buscar</span>
+        <span><b class="k yellow">&nbsp;</b> Actualizar listas</span>
+        <span><b class="k blue">&nbsp;</b> Ajustes</span>
+        <span><b class="k">Volver</b> Atrás</span>
+      </footer>
+    </section>
+
+    <!-- Pantalla de reproducción -->
+    <section id="screen-player" class="screen hidden">
+      <div id="osd" class="osd hidden">
+        <div class="osd-row">
+          <div id="osd-logo" class="osd-logo"></div>
+          <div class="osd-main">
+            <div class="osd-title"><span id="osd-num" class="osd-num"></span> <span id="osd-name"></span> <span id="osd-fav" class="star"></span></div>
+            <div id="osd-group" class="osd-group"></div>
+            <div id="osd-epg" class="osd-epg"></div>
+          </div>
+          <div id="osd-clock" class="clock"></div>
+        </div>
+        <div class="hints small">
+          <span><b class="k">▲▼</b> Cambiar canal</span>
+          <span><b class="k">◀</b> Lista</span>
+          <span><b class="k red">&nbsp;</b> Favorito</span>
+          <span><b class="k yellow">&nbsp;</b> Idioma de audio</span>
+          <span><b class="k">0-9</b> Ir al número</span>
+        </div>
+      </div>
+      <div id="player-state" class="player-state hidden"></div>
+      <div id="numpad" class="numpad hidden"></div>
+      <div id="side" class="side hidden"><div id="side-title" class="col-title"></div><div id="side-list" class="list"></div></div>
+    </section>
+
+    <!-- Pantalla de ajustes y formularios -->
+    <section id="screen-form" class="screen hidden">
+      <header class="topbar">
+        <div class="brand"><img src="icon.png" alt=""> <span id="form-title">Ajustes</span></div>
+      </header>
+      <div id="form" class="form"></div>
+      <footer class="hints">
+        <span><b class="k">OK</b> Elegir o escribir</span>
+        <span><b class="k">Volver</b> Atrás</span>
+      </footer>
+    </section>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+  <div id="busy" class="busy hidden"><div class="spinner"></div><div id="busy-text">Cargando…</div></div>
+
+  <script src="js/parsers.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/player.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

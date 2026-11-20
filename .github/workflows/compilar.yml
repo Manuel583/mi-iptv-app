@@ -112,11 +112,39 @@ jobs:
           path: |
             dist/mi-iptv-windows-portable.zip
             dist/mi-iptv-windows-instalador.exe
+            dist/mi-iptv-samsung-tv.wgt
+          retention-days: 7
+
+  samsung-tv:
+    name: Samsung TV (.wgt)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - name: Pruebas
+        run: node --test tizen/test/parsers.test.js
+
+      - name: Empaquetar para Samsung TV
+        run: |
+          mkdir -p dist
+          sed -i 's/version="1.0.0"/version="${{ env.APP_VERSION }}"/' tizen/config.xml
+          sed -i "s/var VERSION = '1.0.0'/var VERSION = '${{ env.APP_VERSION }}'/" tizen/js/app.js
+          cd tizen
+          zip -r -X ../dist/mi-iptv-samsung-tv.wgt config.xml index.html icon.png css js
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: samsung-tv
+          path: dist/mi-iptv-samsung-tv.wgt
           retention-days: 7
 
   publicar:
     name: Publicar en Releases
-    needs: [android, windows]
+    needs: [android, windows, samsung-tv]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -139,7 +167,11 @@ jobs:
 
             **Android**
             - `mi-iptv-android.apk`: abrir en el móvil para instalar.
+
+            **Samsung TV**
+            - `mi-iptv-samsung-tv.wgt`: aplicación para televisores Samsung (Tizen). Se instala desde el PC con la tele en modo desarrollador (ver el README).
           files: |
             dist/mi-iptv-android.apk
             dist/mi-iptv-windows-portable.zip
             dist/mi-iptv-windows-instalador.exe
+            dist/mi-iptv-samsung-tv.wgt
