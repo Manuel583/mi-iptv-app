@@ -83,6 +83,38 @@ Limitaciones de esta primera versión de la tele: la guía de programación solo
 - **Grabar**: botón rojo. Se guarda al pulsarlo otra vez, al cambiar de canal o al salir. Android: carpeta *Películas/Mi IPTV*. Windows: *Vídeos\Mi IPTV*. Se ven en el botón **Grabaciones** de arriba. Solo graba mientras el canal está abierto. Si la señal se corta, sigue en un archivo "(parte 2)".
 - **Emitir en la tele**: botón de emitir. Busca teles DLNA (Samsung, LG, Sony...) y Chromecast en la misma wifi. La tele descarga el canal por su cuenta; si no lo abre, activa "Pasar la señal por este dispositivo" (entonces el móvil o PC tiene que seguir con la app abierta). Las Samsung no siempre aceptan canales .m3u8 por DLNA; para ellas lo mejor es la app de la tele. En Windows también puedes duplicar la pantalla con **Windows + K**.
 
+### Guía de programación
+
+- **Rejilla**: botón de la guía arriba (icono de líneas de tiempo). Canales en filas y horas en columnas, con una línea roja en la hora actual. Arriba eliges grupo, favoritos o carpeta, y el día.
+- **Ahora | después**: debajo de cada canal aparece lo que echan y lo siguiente.
+- **Xtream**: si un canal no viene en la guía completa, la app pide su programación al servidor.
+
+### Grabación programada (Android y Windows)
+
+Toca un programa de la guía y pulsa **Grabar**. Se graba aunque la app esté cerrada, desde 2 minutos antes hasta 5 después (se cambia en Ajustes > Grabaciones programadas). La lista está en el botón de calendario de la guía o de Grabaciones.
+
+- **Android**: el móvil despierta la app a la hora exacta y aparece un aviso "Grabando" con el botón **Parar y guardar**. Conviene permitir que la app funcione sin ahorro de batería (te lo pide la lista de programadas).
+- **Windows**: se crea una tarea en el Programador de tareas (carpeta *Mi IPTV*). A la hora indicada se abre una ventanita minimizada que graba. El PC tiene que estar encendido o en suspensión (puede despertarse solo si Windows lo permite).
+- **Límites**: el aparato tiene que estar encendido y con Internet. Si tu proveedor solo permite una conexión, no veas otro canal mientras graba. La tele Samsung no puede grabar.
+
+### Pistas de audio y subtítulos
+
+- En el reproductor, botones de **audio** y **subtítulos** (teclas A y S en Windows). La app recuerda el idioma que eliges y lo usa en los demás canales. También se elige en Ajustes > Idioma de audio preferido y Subtítulos de la emisión.
+- En la tele: botón **amarillo** = idioma de audio, **azul** = subtítulos.
+
+### Sincronizar con Google Drive (móvil, PC y tele)
+
+Ajustes > **Sincronizar con Google Drive** > Conectar. La app muestra un código: abre google.com/device en el móvil o el PC, escríbelo y acepta. Desde ese momento, tus listas, favoritos, carpetas, nombres y ajustes pasan solos entre aparatos (cada 15 minutos y al abrir la app). Se guarda en una carpeta privada de tu Drive que no aparece entre tus archivos. Lo propio de cada aparato (aceleración, imagen flotante, grabaciones) no se comparte.
+
+**Una sola vez: crear el permiso de Google (gratis, unos 15 minutos)**
+
+1. Entra en [console.cloud.google.com](https://console.cloud.google.com) con tu cuenta de Google y crea un proyecto llamado *Mi IPTV*.
+2. Menú > *APIs y servicios* > *Biblioteca*: busca **Google Drive API** y pulsa **Habilitar**.
+3. Menú > *Google Auth Platform* > **Empezar**: nombre *Mi IPTV*, tu correo, público **Externo**, acepta.
+4. *Público* > **Publicar aplicación** (estado "En producción"). Así el permiso no caduca a los 7 días. No hace falta verificación porque solo pide acceso a su propia carpeta.
+5. *Clientes* > **Crear cliente** > tipo **TV y dispositivos de entrada limitada** > nombre *Mi IPTV*. Copia el **ID de cliente** y el **Secreto del cliente**.
+6. En GitHub: repositorio > *Settings* > *Secrets and variables* > *Actions* > **New repository secret**. Crea `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` con esos valores. Las próximas versiones los llevarán dentro. (Si no quieres esperar, puedes pegarlos a mano en la app, en la pantalla de sincronizar.)
+
 ### Atajos de teclado (Windows)
 
 | Tecla | Acción |

@@ -9,9 +9,13 @@ import 'package:window_manager/window_manager.dart';
 
 import 'app_state.dart';
 import 'native.dart';
+import 'cloud_sync.dart';
 import 'scheduler.dart';
 import 'ui/home_page.dart';
 import 'ui/recorder_window.dart';
+
+// ignore: unused_element
+AppLifecycleListener? _lifecycle;
 
 bool get isWindows => !kIsWeb && Platform.isWindows;
 bool get isAndroid => !kIsWeb && Platform.isAndroid;
@@ -57,7 +61,15 @@ Future<void> main(List<String> args) async {
   }
   await app.load();
   unawaited(RecordingScheduler.instance.load());
+  unawaited(CloudSync.instance.load());
   runApp(const MiIptvApp());
+  // Al volver a la app: traer cambios de otros aparatos y ver grabaciones.
+  _lifecycle = AppLifecycleListener(
+    onResume: () {
+      CloudSync.instance.onResume();
+      RecordingScheduler.instance.refreshStatuses();
+    },
+  );
 }
 
 class MiIptvApp extends StatelessWidget {

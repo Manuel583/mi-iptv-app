@@ -5,12 +5,14 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
+import '../cloud_sync.dart';
 import '../recordings.dart';
 import 'common.dart';
 import 'player_page.dart' show preferredLanguages;
 import 'recordings_page.dart';
 import 'scheduled_page.dart';
 import 'sources_page.dart';
+import 'sync_page.dart';
 
 const _palette = <int>[
   0xFF1565C0, // azul
@@ -61,6 +63,20 @@ class SettingsPage extends StatelessWidget {
               trailing: const Icon(Icons.chevron_right),
               onTap: () => Navigator.of(context)
                   .push(MaterialPageRoute(builder: (_) => const SourcesPage())),
+            ),
+            ListTile(
+              leading: const Icon(Icons.cloud_sync_outlined),
+              title: const Text('Sincronizar con Google Drive'),
+              subtitle: ListenableBuilder(
+                listenable: CloudSync.instance,
+                builder: (context, _) => Text(
+                  CloudSync.instance.connected
+                      ? 'Conectado con ${CloudSync.instance.account}'
+                      : 'Pasa tu configuración al móvil, al PC y a la tele',
+                ),
+              ),
+              onTap: () => Navigator.of(context)
+                  .push(MaterialPageRoute(builder: (_) => const SyncPage())),
             ),
             ListTile(
               leading: const Icon(Icons.update),

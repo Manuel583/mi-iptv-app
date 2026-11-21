@@ -170,6 +170,9 @@
   var chanList;
   var sideList;
   var trackList;
+  var sync;
+  var pushTimer = null;
+  var pulling = false;
   var trackType = '';   // '' = lista de canales; 'AUDIO' o 'TEXT' = pistas
   var subsTimer = null;
   var player;
@@ -752,6 +755,11 @@
     var items = [
       { type: 'button', id: 'add-m3u', label: '+  Añadir lista M3U (enlace)', action: function () { openAddM3u(); } },
       { type: 'button', id: 'add-xt', label: '+  Añadir Xtream Codes (servidor, usuario y contraseña)', action: function () { openAddXtream(); } },
+      {
+        type: 'item', id: 'sync', label: 'Sincronizar con Google Drive',
+        sub: sync.connected() ? 'Conectado con ' + sync.account() : 'Recibe sola la configuración del móvil y del PC',
+        action: function () { openSync(); }
+      },
       { type: 'button', id: 'import', label: 'Importar la configuración del móvil o del PC', action: function () { openImport(); } },
       { type: 'button', id: 'refresh', label: 'Actualizar todas las listas ahora', action: function () { refreshAll(true); } },
       {
@@ -932,6 +940,97 @@
     });
   }
 
+  // ------------------------------------------------------------ Google Drive
+
+  function schedulePush() {
+    if (!sync || !sync.connected() || pulling) return;
+    clearTimeout(pushTimer);
+    pushTimer = setTimeout(function () {
+      sync.push().catch(function (err) { toast('No se pudo guardar en Drive: ' + err.message, 6000); });
+    }, 20000);
+  }
+
+  /** Trae de Drive lo cambiado en el móvil o el PC y descarga los canales. */
+  function pullFromDrive(force, quiet) {
+    if (!sync.connected()) return Promise.resolve();
+    pulling = true;
+    return sync.pull(force).then(function (changed) {
+      if (!changed) return;
+      if (!quiet) busy('Descargando canales…');
+      return store.refreshAll().then(function () {
+        busy(null);
+        if (screen === 'browse') renderBrowse();
+        toast('Configuración actualizada desde Google Drive');
+      });
+    }).catch(function (err) {
+      busy(null);
+      if (!quiet) toast('Google Drive: ' + err.message, 6000);
+    }).then(function () { pulling = false; });
+  }
+
+  function openSync() {
+    var items = [{
+      type: 'text',
+      html: 'Tus listas, favoritos, carpetas y nombres se guardan en una carpeta privada de tu Google Drive ' +
+        'y pasan solos entre el móvil, el ordenador y la tele. No aparece entre tus archivos.'
+    }];
+    if (sync.connected()) {
+      items.push({ type: 'text', html: 'Conectado con <b>' + esc(sync.account()) + '</b>.' });
+      items.push({
+        type: 'button', label: 'Traer ahora la configuración de Drive', action: function () {
+          busy('Leyendo Google Drive…');
+          pullFromDrive(true).then(function () { busy(null); openSync(); });
+        }
+      });
+      items.push({ type: 'button', label: 'Desconectar esta tele', action: function () { sync.signOut(); toast('Desconectada'); openSync(); } });
+    } else if (!sync.hasClient()) {
+      items.push({ type: 'text', html: 'Falta el permiso de Google. Escribe el ID y el secreto de cliente (los mismos que en el móvil).' });
+      items.push({ type: 'input', id: 'cid', label: 'ID de cliente', value: '' });
+      items.push({ type: 'input', id: 'csec', label: 'Secreto del cliente', value: '' });
+      items.push({
+        type: 'button', label: 'Guardar', action: function () {
+          sync.setClient(formValue('cid'), formValue('csec'));
+          openSync();
+        }
+      });
+    } else {
+      items.push({
+        type: 'button', label: 'Conectar con Google Drive', action: function () {
+          busy('Pidiendo un código a Google…');
+          sync.startSignIn().then(function (code) {
+            busy(null);
+            var cancelled = false;
+            openForm({
+              title: 'Conectar con Google Drive',
+              items: [
+                {
+                  type: 'text',
+                  html: '1. En el móvil o el ordenador abre <b>' + esc(code.url) + '</b><br>' +
+                    '2. Escribe este código y acepta el permiso:<br><span class="bigcode">' + esc(code.userCode) + '</span><br>' +
+                    'Esperando…'
+                },
+                { type: 'button', label: 'Cancelar', action: function () { cancelled = true; openSync(); } }
+              ],
+              onBack: function () { cancelled = true; openSync(); }
+            });
+            return sync.waitForSignIn(code, function () { return cancelled; }).then(function (ok) {
+              if (cancelled) return;
+              if (!ok) { toast('El código ha caducado. Vuelve a intentarlo.'); return openSync(); }
+              toast('Conectado. Trayendo tu configuración…');
+              return pullFromDrive(true).then(function () { goBrowse(); });
+            });
+          }).catch(function (err) {
+            busy(null);
+            toast(err.message, 6000);
+            openSync();
+          });
+        }
+      });
+    }
+    items.push({ type: 'button', label: 'Volver', action: function () { openSettings('sync'); } });
+    openForm({ title: 'Google Drive', items: items, onBack: function () { openSettings('sync'); } });
+  }
+
   // ------------------------------------------------------------ General
 
   function refreshAll(showBusy) {
@@ -990,6 +1089,13 @@
   function init() {
     registerTvKeys();
     store.load();
+    sync = new root.MiSync(store);
+    // Cada cambio hecho en la tele se sube a Drive (si está conectada).
+    var origSave = store.save;
+    store.save = function () {
+      origSave.call(store);
+      schedulePush();
+    };
     catList = new VList($('cats'), catRow);
     chanList = new VList($('chans'), channelRow);
     sideList = new VList($('side-list'), channelRow);
@@ -1022,6 +1128,11 @@
     setInterval(function () {
       if (screen !== 'form' && needsRefresh()) refreshAll(false);
     }, 30 * 60 * 1000);
+    // Cambios hechos en el móvil o el PC (Google Drive).
+    if (sync.connected()) pullFromDrive(false, !!store.sources.length);
+    setInterval(function () {
+      if (screen !== 'form') pullFromDrive(false, true);
+    }, 15 * 60 * 1000);
   }
 
   root.MiApp = { store: store, directDownloadUrl: directDownloadUrl };

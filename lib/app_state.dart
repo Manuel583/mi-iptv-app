@@ -94,6 +94,7 @@ class AppController extends ChangeNotifier {
   }
 
   void _applyConfig(Map<String, dynamic> j) {
+    lastUserChange = DateTime.tryParse('${j['lastUserChange'] ?? ''}');
     settings = AppSettings.fromJson(
       (j['settings'] as Map?)?.cast<String, dynamic>(),
     );
@@ -112,6 +113,7 @@ class AppController extends ChangeNotifier {
   Map<String, dynamic> _configJson() => {
     'app': 'mi-iptv',
     'version': 1,
+    'lastUserChange': lastUserChange?.toIso8601String(),
     'settings': settings.toJson(),
     'custom': custom.toJson(),
     'sources': sources.map((s) => s.toJson()).toList(),
@@ -135,11 +137,19 @@ class AppController extends ChangeNotifier {
     }
   }
 
-  void changed({bool reindex = false}) {
+  /// Se llama cuando el usuario cambia algo (para sincronizar).
+  VoidCallback? onUserChange;
+  DateTime? lastUserChange;
+
+  void changed({bool reindex = false, bool user = true}) {
     if (reindex) _rebuildIndex();
     revision++;
     save();
     notifyListeners();
+    if (user) {
+      lastUserChange = DateTime.now();
+      onUserChange?.call();
+    }
   }
 
   Future<void> _loadChannelCache(PlaylistSource s) async {
@@ -622,11 +632,11 @@ class AppController extends ChangeNotifier {
       s.channelCount = channels.length;
       s.lastUpdated = DateTime.now();
       s.lastError = null;
-      changed(reindex: true);
+      changed(reindex: true, user: false);
       return null;
     } catch (e) {
       s.lastError = _friendlyError(e);
-      changed();
+      changed(user: false);
       return s.lastError;
     } finally {
       refreshStatus = '';
@@ -766,6 +776,129 @@ class AppController extends ChangeNotifier {
   void setLastChannel(Channel c) {
     settings.lastChannelKey = c.key;
     save();
+  }
+
+  // ---------------------------------------------------------------- Sincronizar
+
+  /// Ajustes que se comparten entre aparatos (el resto son de cada uno).
+  static const syncedSettings = [
+    'themeMode',
+    'seedColor',
+    'autoRefreshHours',
+    'epgUrls',
+    'userAgent',
+    'showHidden',
+    'reconnect',
+    'recordBeforeMinutes',
+    'recordAfterMinutes',
+    'audioLanguage',
+    'subtitleLanguage',
+  ];
+
+  static const _localSourceFields = [
+    'lastUpdated',
+    'lastError',
+    'channelCount',
+    'detectedEpgUrl',
+  ];
+
+  /// Lo que se guarda en Drive.
+  Future<Map<String, dynamic>> syncPayload() async {
+    final all = settings.toJson();
+    final files = <String, String>{};
+    for (final s in sources) {
+      if (s.type == SourceType.m3uFile) {
+        final f = File('${_dir.path}/files/${s.id}.m3u');
+        if (await f.exists()) files[s.id] = await f.readAsString();
+      }
+    }
+    return {
+      'app': 'mi-iptv',
+      'version': 1,
+      'settings': {for (final k in syncedSettings) k: all[k]},
+      'custom': custom.toJson(),
+      'sources': [
+        for (final s in sources)
+          s.toJson()..removeWhere((k, _) => _localSourceFields.contains(k)),
+      ],
+      'files': files,
+    };
+  }
+
+  /// Aplica lo que llega de Drive sin borrar lo propio de este aparato.
+  Future<void> applySyncPayload(Map<String, dynamic> p) async {
+    final oldById = {for (final s in sources) s.id: s};
+    final oldEpg = allEpgUrls.join('|');
+    final oldFiles = <String, String>{};
+    for (final s in sources) {
+      if (s.type == SourceType.m3uFile) {
+        final f = File('${_dir.path}/files/${s.id}.m3u');
+        if (await f.exists()) oldFiles[s.id] = await f.readAsString();
+      }
+    }
+    // Ajustes compartidos.
+    final cur = settings.toJson();
+    final incoming = (p['settings'] as Map?) ?? const {};
+    for (final k in syncedSettings) {
+      if (incoming.containsKey(k)) cur[k] = incoming[k];
+    }
+    settings = AppSettings.fromJson(cur);
+    custom = Customization.fromJson(
+      (p['custom'] as Map?)?.cast<String, dynamic>(),
+    );
+    // Listas.
+    final newSources = <PlaylistSource>[];
+    final toRefresh = <PlaylistSource>[];
+    final files = (p['files'] as Map?) ?? const {};
+    for (final raw in (p['sources'] as List?) ?? const []) {
+      final j = Map<String, dynamic>.from(raw as Map);
+      final old = oldById[j['id']];
+      if (old != null) {
+        for (final k in _localSourceFields) {
+          j[k] = old.toJson()[k];
+        }
+      }
+      final s = PlaylistSource.fromJson(j);
+      newSources.add(s);
+      final content = files[s.id];
+      if (content is String) {
+        await File('${_dir.path}/files/${s.id}.m3u').writeAsString(content);
+      }
+      final same =
+          old != null &&
+          old.type == s.type &&
+          old.url == s.url &&
+          old.server == s.server &&
+          old.username == s.username &&
+          old.password == s.password &&
+          old.xtreamOutput == s.xtreamOutput &&
+          (content == null || content == oldFiles[s.id]);
+      if (!same && s.enabled) toRefresh.add(s);
+    }
+    final newIds = newSources.map((s) => s.id).toSet();
+    for (final s in sources) {
+      if (newIds.contains(s.id)) continue;
+      _channelsBySource.remove(s.id);
+      for (final f in ['channels/${s.id}.json', 'files/${s.id}.m3u']) {
+        final file = File('${_dir.path}/$f');
+        if (await file.exists()) await file.delete();
+      }
+    }
+    for (final s in newSources) {
+      if (!_channelsBySource.containsKey(s.id)) await _loadChannelCache(s);
+    }
+    sources
+      ..clear()
+      ..addAll(newSources);
+    final t = DateTime.tryParse('${p['updatedAt'] ?? ''}');
+    if (t != null) lastUserChange = t;
+    changed(reindex: true, user: false);
+    for (final s in toRefresh) {
+      await refreshSource(s);
+    }
+    if (allEpgUrls.join('|') != oldEpg || toRefresh.isNotEmpty) {
+      unawaited(refreshEpg());
+    }
   }
 
   // ---------------------------------------------------------------- Exportar
