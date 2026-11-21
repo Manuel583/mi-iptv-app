@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import '../app_state.dart';
 import '../recordings.dart';
 import 'common.dart';
+import 'live_captions.dart';
 import 'recordings_page.dart';
 import 'sources_page.dart';
 
@@ -236,6 +237,15 @@ class SettingsPage extends StatelessWidget {
                 title: const Text('Imagen flotante al salir de la app'),
                 value: s.pipOnLeave,
                 onChanged: (v) => app.updateSettings((s) => s.pipOnLeave = v),
+              ),
+              ListTile(
+                leading: const Icon(Icons.closed_caption_outlined),
+                title: const Text('Subtítulos en directo'),
+                subtitle: const Text('Idioma, tamaño, color, fondo y posición'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const CaptionStylePage()),
+                ),
               ),
               SwitchListTile(
                 secondary: const Icon(Icons.headphones_outlined),
