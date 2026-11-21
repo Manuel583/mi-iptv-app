@@ -149,14 +149,52 @@
     var byKey = {};
     var groups = {};
     var natural = [];
+    var movieGroups = {};
+    var movieKeys = [];
+    var seriesGroups = {};
+    var seriesKeys = [];
+    var seriesByKey = {};
+    var football = [];
+    var tdt = [];
+    var movieCount = 0;
+    var self = this;
+    this.xtreamEpisodes = this.xtreamEpisodes || {};
     for (var i = 0; i < this.sources.length; i++) {
       var s = this.sources[i];
       if (!s.enabled) continue;
       var list = this.channelsBySource[s.id] || [];
       for (var j = 0; j < list.length; j++) {
         var ch = list[j];
-        byKey[ch.k] = ch;
+        if (!ch.xs) byKey[ch.k] = ch;
         var g = ch.g || '';
+        if (ch.v === 'm') {
+          movieCount++;
+          if (!movieGroups[g]) {
+            movieGroups[g] = [];
+            movieKeys.push(g);
+          }
+          movieGroups[g].push(ch);
+          continue;
+        }
+        if (ch.v === 's') {
+          var sname = ch.sn || ch.n;
+          var skey = ch.xs ? ch.k : ch.s + '|serie|' + g + '|' + P.normalizeText(sname);
+          var info = seriesByKey[skey];
+          if (!info) {
+            info = { k: skey, n: sname, l: ch.l || '', g: g, s: ch.s, isSeries: true, xtream: ch.xs ? ch : null, episodes: [] };
+            seriesByKey[skey] = info;
+            if (!seriesGroups[g]) {
+              seriesGroups[g] = [];
+              seriesKeys.push(g);
+            }
+            seriesGroups[g].push(info);
+          }
+          if (ch.xs) info.episodes = (self.xtreamEpisodes[ch.k] || []).slice();
+          else info.episodes.push(ch);
+          continue;
+        }
+        if (P.isFootballChannel(ch.n, g)) football.push(ch);
+        if (P.isTdtChannel(ch.n, ch.c || '', ch.i)) tdt.push(ch);
         if (!groups[g]) {
           groups[g] = [];
           natural.push(g);
@@ -188,9 +226,112 @@
       });
       groups[gk] = indexed.map(function (e) { return e.c; });
     });
+    Object.keys(seriesByKey).forEach(function (k) {
+      var info = seriesByKey[k];
+      if (!info.xtream) info.episodes.sort(function (a, b) { return ((a.se || 0) - (b.se || 0)) || ((a.ep || 0) - (b.ep || 0)); });
+      for (var e = 0; e < info.episodes.length; e++) byKey[info.episodes[e].k] = info.episodes[e];
+    });
     this.byKey = byKey;
     this.groupKeys = keys;
     this.groupChannels = groups;
+    this.movieKeys = movieKeys;
+    this.movieGroupsMap = movieGroups;
+    this.movieCount = movieCount;
+    this.seriesKeys = seriesKeys;
+    this.seriesGroupsMap = seriesGroups;
+    this.seriesByKey = seriesByKey;
+    this.seriesCount = Object.keys(seriesByKey).length;
+    this.footballList = football;
+    this.tdtList = tdt;
+  };
+
+  // ---------------------------------------------------------------- Películas y series
+
+  Store.prototype._groupsOf = function (keys, map, count) {
+    var out = [];
+    for (var i = 0; i < (keys || []).length; i++) {
+      var g = keys[i];
+      if (!this.settings.showHidden && this.custom.hiddenGroups.indexOf(g) >= 0) continue;
+      var n = count(map[g]);
+      if (n > 0) out.push({ key: g, name: this.groupName(g), count: n });
+    }
+    return out;
+  };
+
+  Store.prototype.movieGroups = function () {
+    var self = this;
+    return this._groupsOf(this.movieKeys, this.movieGroupsMap, function (l) {
+      return l.filter(function (c) { return !self._hiddenChannel(c); }).length;
+    });
+  };
+
+  Store.prototype.moviesInGroup = function (g) {
+    var self = this;
+    return ((this.movieGroupsMap || {})[g] || []).filter(function (c) { return !self._hiddenChannel(c); });
+  };
+
+  Store.prototype.seriesGroups = function () {
+    var self = this;
+    return this._groupsOf(this.seriesKeys, this.seriesGroupsMap, function (l) {
+      return l.filter(function (c) { return !self._hiddenChannel(c); }).length;
+    });
+  };
+
+  Store.prototype.seriesInGroup = function (g) {
+    var self = this;
+    return ((this.seriesGroupsMap || {})[g] || []).filter(function (c) { return !self._hiddenChannel(c); });
+  };
+
+  /** Temporadas de una serie: [{season, episodes}]. */
+  Store.prototype.seasonsOf = function (info) {
+    var map = {};
+    var keys = [];
+    for (var i = 0; i < info.episodes.length; i++) {
+      var e = info.episodes[i];
+      var n = e.se || 0;
+      if (!map[n]) {
+        map[n] = [];
+        keys.push(n);
+      }
+      map[n].push(e);
+    }
+    keys.sort(function (a, b) { return a - b; });
+    return keys.map(function (k) { return { season: k, episodes: map[k] }; });
+  };
+
+  /** Pide al servidor Xtream los capítulos de una serie. Promesa. */
+  Store.prototype.loadSeriesEpisodes = function (info) {
+    var self = this;
+    var x = info.xtream;
+    if (!x || info.episodes.length) return Promise.resolve(info);
+    var s = this.sources.filter(function (z) { return z.id === x.s; })[0];
+    if (!s) return Promise.reject(new Error('No se encuentra la lista de esta serie.'));
+    var server = P.normalizeServer(s.server);
+    var url = server + '/player_api.php?username=' + encodeURIComponent(s.username) +
+      '&password=' + encodeURIComponent(s.password) + '&action=get_series_info&series_id=' + encodeURIComponent(x.xs);
+    return this.getText(url, 60000).then(function (text) {
+      var eps = P.parseXtreamSeriesInfo(text, x, server, s.username, s.password);
+      if (!eps.length) throw new Error('El servidor no tiene capítulos de esta serie.');
+      self.xtreamEpisodes[x.k] = eps;
+      info.episodes = eps.slice();
+      for (var i = 0; i < eps.length; i++) self.byKey[eps[i].k] = eps[i];
+      return info;
+    });
+  };
+
+  // ---------------------------------------------------------------- Carpetas automáticas
+
+  Store.prototype.smartFolders = function () {
+    var self = this;
+    function visible(l) { return (l || []).filter(function (c) { return !self._hiddenChannel(c) && !self._hiddenGroup(c); }); }
+    return [
+      { id: 'futbol', name: 'Fútbol', channels: visible(this.footballList) },
+      { id: 'tdt', name: 'TDT', channels: visible(this.tdtList) }
+    ];
+  };
+
+  Store.prototype._hiddenGroup = function (c) {
+    return !this.settings.showHidden && this.custom.hiddenGroups.indexOf(c.g || '') >= 0;
   };
 
   // ---------------------------------------------------------------- Consultas
@@ -266,6 +407,12 @@
     limit = limit || 300;
     var out = [];
     var all = this.allChannels();
+    var mg = this.movieGroups();
+    for (var m = 0; m < mg.length; m++) all = all.concat(this.moviesInGroup(mg[m].key));
+    var self = this;
+    Object.keys(this.seriesByKey || {}).forEach(function (k) {
+      if (!self._hiddenChannel(self.seriesByKey[k])) all = all.concat(self.seriesByKey[k].episodes);
+    });
     for (var i = 0; i < all.length && out.length < limit; i++) {
       if (P.normalizeText(this.channelName(all[i])).indexOf(q) >= 0) out.push(all[i]);
     }
@@ -273,7 +420,10 @@
   };
 
   Store.prototype.totalChannels = function () {
-    return Object.keys(this.byKey).length;
+    var n = 0;
+    var g = this.groupChannels || {};
+    Object.keys(g).forEach(function (k) { n += g[k].length; });
+    return n;
   };
 
   // ---------------------------------------------------------------- Cambios
@@ -332,7 +482,7 @@
         } catch (e) {
           throw new Error('El servidor no ha devuelto la lista de canales. Revisa usuario y contraseña.');
         }
-        return P.parseXtream({
+        var live = P.parseXtream({
           categories: cats,
           streams: streams,
           sourceId: s.id,
@@ -340,6 +490,23 @@
           username: s.username,
           password: s.password,
           output: s.xtreamOutput
+        });
+        // Películas y series: si el servidor no las tiene, se sigue igual.
+        function optional(p) { return p.then(function (v) { return v; }, function () { return null; }); }
+        return Promise.all([
+          optional(self.getText(base + '&action=get_vod_categories')),
+          optional(self.getText(base + '&action=get_vod_streams', 120000)),
+          optional(self.getText(base + '&action=get_series_categories')),
+          optional(self.getText(base + '&action=get_series', 120000))
+        ]).then(function (v) {
+          var out = live;
+          try {
+            if (v[1]) out = out.concat(P.parseXtreamVod({ categories: v[0] || '[]', streams: v[1], sourceId: s.id, server: server, username: s.username, password: s.password }));
+          } catch (e) { /* sin películas */ }
+          try {
+            if (v[3]) out = out.concat(P.parseXtreamSeries({ categories: v[2] || '[]', series: v[3], sourceId: s.id }));
+          } catch (e2) { /* sin series */ }
+          return out;
         });
       });
     } else if (s.type === 'm3uFile') {

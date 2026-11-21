@@ -1,6 +1,7 @@
 // Lectura de listas M3U y de respuestas de Xtream Codes.
 import 'dart:convert';
 
+import 'content_kind.dart';
 import 'country.dart';
 import 'models.dart';
 
@@ -99,9 +100,14 @@ ParsedPlaylist parseM3u(String content, String sourceId) {
         ? attrs['group-title']!
         : extGroup;
     final tvgId = attrs['tvg-id'] ?? '';
+    final cls = classifyEntry(url: url, group: group, name: chName);
     channels.add(
       Channel(
         key: keys.make(sourceId, group, chName),
+        kind: cls.kind,
+        seriesName: cls.seriesName,
+        season: cls.season,
+        episode: cls.episode,
         sourceId: sourceId,
         name: chName,
         url: url,
@@ -200,6 +206,179 @@ List<Channel> parseXtream({
       ),
     );
   }
+  return out;
+}
+
+Map<String, String> _xtreamCategories(String json) {
+  final cats = <String, String>{};
+  try {
+    final decoded = jsonDecode(json);
+    if (decoded is List) {
+      for (final c in decoded) {
+        if (c is Map) {
+          cats['${c['category_id']}'] = '${c['category_name'] ?? ''}';
+        }
+      }
+    }
+  } catch (_) {}
+  return cats;
+}
+
+String _str(Object? v) {
+  final s = '${v ?? ''}'.trim();
+  return s == 'null' ? '' : s;
+}
+
+/// Películas de un servidor Xtream (get_vod_categories y get_vod_streams).
+List<Channel> parseXtreamVod({
+  required String categoriesJson,
+  required String streamsJson,
+  required String sourceId,
+  required String server,
+  required String username,
+  required String password,
+}) {
+  final cats = _xtreamCategories(categoriesJson);
+  final Object? decoded;
+  try {
+    decoded = jsonDecode(streamsJson);
+  } catch (_) {
+    return const [];
+  }
+  if (decoded is! List) return const [];
+  final keys = _KeyMaker();
+  final out = <Channel>[];
+  final u = Uri.encodeComponent(username);
+  final p = Uri.encodeComponent(password);
+  for (final s in decoded) {
+    if (s is! Map) continue;
+    final id = s['stream_id'];
+    if (id == null) continue;
+    final name = _str(s['name']);
+    final group = cats['${s['category_id']}'] ?? '';
+    var ext = _str(s['container_extension']);
+    if (ext.isEmpty) ext = 'mp4';
+    out.add(
+      Channel(
+        key: keys.make('$sourceId|vod', group, name),
+        sourceId: sourceId,
+        name: name.isEmpty ? 'Película $id' : name,
+        url: '$server/movie/$u/$p/$id.$ext',
+        logo: _str(s['stream_icon']),
+        group: group,
+        kind: ContentKind.movie,
+      ),
+    );
+  }
+  return out;
+}
+
+/// Series de un servidor Xtream (get_series_categories y get_series). Los
+/// capítulos se piden al abrir cada serie, con [parseXtreamSeriesInfo].
+List<Channel> parseXtreamSeries({
+  required String categoriesJson,
+  required String seriesJson,
+  required String sourceId,
+}) {
+  final cats = _xtreamCategories(categoriesJson);
+  final Object? decoded;
+  try {
+    decoded = jsonDecode(seriesJson);
+  } catch (_) {
+    return const [];
+  }
+  if (decoded is! List) return const [];
+  final keys = _KeyMaker();
+  final out = <Channel>[];
+  for (final s in decoded) {
+    if (s is! Map) continue;
+    final id = _str(s['series_id']);
+    if (id.isEmpty) continue;
+    final name = _str(s['name']);
+    final group = cats['${s['category_id']}'] ?? '';
+    out.add(
+      Channel(
+        key: keys.make('$sourceId|serie', group, name),
+        sourceId: sourceId,
+        name: name.isEmpty ? 'Serie $id' : name,
+        url: '',
+        logo: _str(s['cover']),
+        group: group,
+        kind: ContentKind.series,
+        seriesName: name.isEmpty ? 'Serie $id' : name,
+        seriesId: id,
+      ),
+    );
+  }
+  return out;
+}
+
+/// Capítulos de una serie de Xtream (get_series_info).
+List<Channel> parseXtreamSeriesInfo({
+  required String json,
+  required Channel series,
+  required String server,
+  required String username,
+  required String password,
+}) {
+  final decoded = jsonDecode(json);
+  if (decoded is! Map) return const [];
+  final eps = decoded['episodes'];
+  final out = <Channel>[];
+  final u = Uri.encodeComponent(username);
+  final p = Uri.encodeComponent(password);
+  void add(Object? seasonKey, Object? e) {
+    if (e is! Map) return;
+    final id = _str(e['id']);
+    if (id.isEmpty) return;
+    final season =
+        int.tryParse(_str(e['season'])) ?? int.tryParse('$seasonKey') ?? 0;
+    final epNum = int.tryParse(_str(e['episode_num'])) ?? 0;
+    var ext = _str(e['container_extension']);
+    if (ext.isEmpty) ext = 'mp4';
+    var title = _str(e['title']);
+    if (title.isEmpty) title = 'Capítulo $epNum';
+    final info = e['info'];
+    final logo = info is Map ? _str(info['movie_image']) : '';
+    out.add(
+      Channel(
+        key: '${series.key}|$season|$epNum|$id',
+        sourceId: series.sourceId,
+        name: title,
+        url: '$server/series/$u/$p/$id.$ext',
+        logo: logo.isEmpty ? series.logo : logo,
+        group: series.group,
+        kind: ContentKind.series,
+        seriesName: series.seriesName,
+        season: season,
+        episode: epNum,
+      ),
+    );
+  }
+
+  if (eps is Map) {
+    eps.forEach((k, v) {
+      if (v is List) {
+        for (final e in v) {
+          add(k, e);
+        }
+      }
+    });
+  } else if (eps is List) {
+    for (final v in eps) {
+      if (v is List) {
+        for (final e in v) {
+          add(null, e);
+        }
+      } else {
+        add(null, v);
+      }
+    }
+  }
+  out.sort((a, b) {
+    final c = a.season.compareTo(b.season);
+    return c != 0 ? c : a.episode.compareTo(b.episode);
+  });
   return out;
 }
 

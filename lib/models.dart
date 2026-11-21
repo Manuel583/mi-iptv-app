@@ -1,4 +1,7 @@
 // Modelos de datos de la aplicación.
+import 'content_kind.dart';
+
+export 'content_kind.dart' show ContentKind;
 
 enum SourceType { m3uUrl, m3uFile, xtream }
 
@@ -123,6 +126,11 @@ class Channel {
     this.country = '',
     this.userAgent = '',
     this.referrer = '',
+    this.kind = ContentKind.live,
+    this.seriesName = '',
+    this.season = 0,
+    this.episode = 0,
+    this.seriesId = '',
   });
 
   /// Identificador estable (lista + grupo + nombre).
@@ -138,6 +146,20 @@ class Channel {
   final String userAgent;
   final String referrer;
 
+  /// Canal en directo, película o capítulo de serie.
+  final ContentKind kind;
+
+  /// Para las series: nombre de la serie, temporada y capítulo.
+  final String seriesName;
+  final int season;
+  final int episode;
+
+  /// Para las series de Xtream: identificador de la serie en el servidor
+  /// (los capítulos se piden al abrirla).
+  final String seriesId;
+
+  bool get isLive => kind == ContentKind.live;
+
   Map<String, dynamic> toJson() => {
     'k': key,
     's': sourceId,
@@ -150,6 +172,12 @@ class Channel {
     if (country.isNotEmpty) 'c': country,
     if (userAgent.isNotEmpty) 'a': userAgent,
     if (referrer.isNotEmpty) 'r': referrer,
+    if (kind == ContentKind.movie) 'v': 'm',
+    if (kind == ContentKind.series) 'v': 's',
+    if (seriesName.isNotEmpty) 'sn': seriesName,
+    if (season != 0) 'se': season,
+    if (episode != 0) 'ep': episode,
+    if (seriesId.isNotEmpty) 'xs': seriesId,
   };
 
   factory Channel.fromJson(Map<String, dynamic> j) => Channel(
@@ -164,6 +192,13 @@ class Channel {
     country: (j['c'] ?? '') as String,
     userAgent: (j['a'] ?? '') as String,
     referrer: (j['r'] ?? '') as String,
+    kind: j['v'] == 'm'
+        ? ContentKind.movie
+        : (j['v'] == 's' ? ContentKind.series : ContentKind.live),
+    seriesName: (j['sn'] ?? '') as String,
+    season: (j['se'] ?? 0) as int,
+    episode: (j['ep'] ?? 0) as int,
+    seriesId: (j['xs'] ?? '') as String,
   );
 }
 

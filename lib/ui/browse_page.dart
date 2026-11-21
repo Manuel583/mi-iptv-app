@@ -3,8 +3,9 @@ import 'package:flutter/material.dart';
 import '../app_state.dart';
 import '../models.dart';
 import 'common.dart';
+import 'series_page.dart';
 
-enum BrowseMode { groups, countries }
+enum BrowseMode { groups, countries, movies, series }
 
 /// Navegación por grupos o por países. En pantallas anchas muestra
 /// las categorías a la izquierda y los canales a la derecha.
@@ -24,9 +25,12 @@ class _BrowsePageState extends State<BrowsePage> {
   bool get _isGroups => widget.mode == BrowseMode.groups;
 
   List<GroupInfo> _categories() {
-    final list = _isGroups
-        ? app.groups(includeHidden: _editingGroups)
-        : app.countries();
+    final list = switch (widget.mode) {
+      BrowseMode.groups => app.groups(includeHidden: _editingGroups),
+      BrowseMode.countries => app.countries(),
+      BrowseMode.movies => app.movieGroups(),
+      BrowseMode.series => app.seriesGroups(),
+    };
     final q = _filter.text.trim().toLowerCase();
     if (q.isEmpty || _editingGroups) return list;
     return list.where((g) => g.name.toLowerCase().contains(q)).toList();
@@ -68,6 +72,12 @@ class _BrowsePageState extends State<BrowsePage> {
               Expanded(
                 child: sel == null
                     ? const Center(child: Text('Sin canales'))
+                    : widget.mode == BrowseMode.series
+                    ? SeriesList(
+                        key: ValueKey('series|$sel'),
+                        groupKey: sel,
+                        embedded: true,
+                      )
                     : CategoryChannels(
                         key: ValueKey('${widget.mode}|$sel'),
                         mode: widget.mode,
@@ -84,8 +94,9 @@ class _BrowsePageState extends State<BrowsePage> {
           onOpen: (k) {
             Navigator.of(context).push(
               MaterialPageRoute(
-                builder: (_) =>
-                    CategoryChannels(mode: widget.mode, categoryKey: k),
+                builder: (_) => widget.mode == BrowseMode.series
+                    ? SeriesList(groupKey: k)
+                    : CategoryChannels(mode: widget.mode, categoryKey: k),
               ),
             );
           },
@@ -115,7 +126,9 @@ class _BrowsePageState extends State<BrowsePage> {
                     decoration: InputDecoration(
                       isDense: true,
                       prefixIcon: const Icon(Icons.filter_list),
-                      hintText: _isGroups ? 'Filtrar grupos' : 'Filtrar países',
+                      hintText: widget.mode == BrowseMode.countries
+                          ? 'Filtrar países'
+                          : 'Filtrar grupos',
                       border: const OutlineInputBorder(),
                     ),
                   ),
@@ -211,7 +224,15 @@ class _BrowsePageState extends State<BrowsePage> {
         header,
         Expanded(
           child: cats.isEmpty
-              ? const Center(child: Text('No hay canales todavía'))
+              ? Center(
+                  child: Text(
+                    widget.mode == BrowseMode.movies
+                        ? 'No hay películas'
+                        : widget.mode == BrowseMode.series
+                        ? 'No hay series'
+                        : 'No hay canales todavía',
+                  ),
+                )
               : ListView.builder(
                   itemCount: cats.length,
                   itemBuilder: (context, i) {
@@ -220,11 +241,12 @@ class _BrowsePageState extends State<BrowsePage> {
                       opacity: g.hidden ? 0.45 : 1,
                       child: ListTile(
                         selected: g.key == selected,
-                        leading: Icon(
-                          _isGroups
-                              ? Icons.folder_open_outlined
-                              : Icons.flag_outlined,
-                        ),
+                        leading: Icon(switch (widget.mode) {
+                          BrowseMode.groups => Icons.folder_open_outlined,
+                          BrowseMode.countries => Icons.flag_outlined,
+                          BrowseMode.movies => Icons.movie_outlined,
+                          BrowseMode.series => Icons.subscriptions_outlined,
+                        }),
                         title: Text(
                           g.name,
                           maxLines: 1,
@@ -232,7 +254,9 @@ class _BrowsePageState extends State<BrowsePage> {
                         ),
                         trailing: Text('${g.count}'),
                         onTap: () => onOpen(g.key),
-                        onLongPress: _isGroups ? () => _groupActions(g) : null,
+                        onLongPress: widget.mode == BrowseMode.countries
+                            ? null
+                            : () => _groupActions(g),
                       ),
                     );
                   },
@@ -277,14 +301,15 @@ class _BrowsePageState extends State<BrowsePage> {
                 app.setGroupHidden(g.key, !g.hidden);
               },
             ),
-            ListTile(
-              leading: const Icon(Icons.swap_vert),
-              title: const Text('Ordenar u ocultar grupos'),
-              onTap: () {
-                Navigator.pop(ctx);
-                setState(() => _editingGroups = true);
-              },
-            ),
+            if (_isGroups)
+              ListTile(
+                leading: const Icon(Icons.swap_vert),
+                title: const Text('Ordenar u ocultar grupos'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  setState(() => _editingGroups = true);
+                },
+              ),
           ],
         ),
       ),
@@ -316,9 +341,14 @@ class _CategoryChannelsState extends State<CategoryChannels> {
   bool get _isGroup => widget.mode == BrowseMode.groups;
 
   List<Channel> _channels() {
-    final list = _isGroup
-        ? app.channelsInGroup(widget.categoryKey, includeHidden: _editing)
-        : app.channelsInCountry(widget.categoryKey);
+    final list = switch (widget.mode) {
+      BrowseMode.groups => app.channelsInGroup(
+        widget.categoryKey,
+        includeHidden: _editing,
+      ),
+      BrowseMode.movies => app.moviesInGroup(widget.categoryKey),
+      _ => app.channelsInCountry(widget.categoryKey),
+    };
     final q = _filter.text.trim().toLowerCase();
     if (q.isEmpty || _editing) return list;
     return list
@@ -332,17 +362,18 @@ class _CategoryChannelsState extends State<CategoryChannels> {
       listenable: app,
       builder: (context, _) {
         final channels = _channels();
-        final title = _isGroup
-            ? app.groupName(widget.categoryKey)
-            : widget.categoryKey;
+        final title = widget.mode == BrowseMode.countries
+            ? widget.categoryKey
+            : app.groupName(widget.categoryKey);
         final actions = [
-          IconButton(
-            tooltip: 'Ver en mosaico',
-            icon: const Icon(Icons.grid_view),
-            onPressed: channels.isEmpty
-                ? null
-                : () => openMosaic(context, channels.take(4).toList()),
-          ),
+          if (widget.mode != BrowseMode.movies)
+            IconButton(
+              tooltip: 'Ver en mosaico',
+              icon: const Icon(Icons.grid_view),
+              onPressed: channels.isEmpty
+                  ? null
+                  : () => openMosaic(context, channels.take(4).toList()),
+            ),
           if (_isGroup)
             IconButton(
               tooltip: _editing
@@ -380,7 +411,7 @@ class _CategoryChannelsState extends State<CategoryChannels> {
               child: ChannelListView(
                 channels: channels,
                 editing: _editing,
-                showGroup: !_isGroup,
+                showGroup: widget.mode == BrowseMode.countries,
                 onReorder: _isGroup
                     ? (o, n) =>
                           app.reorderChannelsInGroup(widget.categoryKey, o, n)

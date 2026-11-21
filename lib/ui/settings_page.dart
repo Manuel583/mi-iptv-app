@@ -60,7 +60,12 @@ class SettingsPage extends StatelessWidget {
               leading: const Icon(Icons.playlist_play),
               title: const Text('Mis listas'),
               subtitle: Text(
-                '${app.sources.length} listas | ${app.allChannels.length} canales',
+                [
+                  '${app.sources.length} listas',
+                  '${app.allChannels.length} canales',
+                  if (app.hasMovies) '${app.allMovies.length} películas',
+                  if (app.hasSeries) '${app.seriesCount} series',
+                ].join(' | '),
               ),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => Navigator.of(context)

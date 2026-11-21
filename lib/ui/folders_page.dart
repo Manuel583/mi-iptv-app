@@ -112,6 +112,29 @@ class _FoldersPageState extends State<FoldersPage> {
       listenable: app,
       builder: (context, _) {
         final folders = app.custom.folders;
+        final smart = app.smartFolders();
+        final smartTiles = [
+          for (final f in smart)
+            ListTile(
+              leading: Icon(
+                f.id == 'auto:futbol' ? Icons.sports_soccer : Icons.tv,
+              ),
+              title: Text(f.name),
+              subtitle: Text(
+                'Automática | ${f.channels.length} canales\n${f.description}',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              isThreeLine: true,
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => SmartFolderPage(folderId: f.id),
+                ),
+              ),
+            ),
+          const Divider(height: 1),
+        ];
         return Scaffold(
           floatingActionButton: FloatingActionButton.extended(
             heroTag: 'nueva-carpeta',
@@ -130,6 +153,7 @@ class _FoldersPageState extends State<FoldersPage> {
                     ? null
                     : () => setState(() => _editing = !_editing),
               ),
+              if (!_editing || folders.isEmpty) ...smartTiles,
               Expanded(
                 child: folders.isEmpty
                     ? const Center(
@@ -258,6 +282,44 @@ class _FolderPageState extends State<FolderPage> {
             showGroup: true,
             onReorder: (o, n) => app.reorderFolderChannels(widget.folder, o, n),
             emptyText: 'Esta carpeta está vacía.\nEn cualquier canal pulsa los tres puntos y elige "Añadir a una carpeta".',
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Carpeta automática (fútbol, TDT): se rellena sola con los canales de
+/// todas las listas cada vez que se actualizan.
+class SmartFolderPage extends StatelessWidget {
+  const SmartFolderPage({super.key, required this.folderId});
+  final String folderId;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: app,
+      builder: (context, _) {
+        final f = app.smartFolders().firstWhere((x) => x.id == folderId);
+        final list = f.channels;
+        return Scaffold(
+          appBar: AppBar(
+            title: Text(f.name),
+            actions: [
+              IconButton(
+                tooltip: 'Ver en mosaico',
+                icon: const Icon(Icons.grid_view),
+                onPressed: list.isEmpty
+                    ? null
+                    : () => openMosaic(context, list.take(4).toList()),
+              ),
+            ],
+          ),
+          body: ChannelListView(
+            channels: list,
+            showGroup: true,
+            emptyText:
+                'No se ha encontrado ningún canal de ${f.name} en tus listas.',
           ),
         );
       },

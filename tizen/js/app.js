@@ -188,6 +188,10 @@
   var epgToken = 0;
 
   function channelRow(c, i) {
+    if (c.isSeries) {
+      return '<span class="logo">' + (c.l ? logoHtml(c.l) : '<span class="ph">' + esc(String(c.n).charAt(0).toUpperCase()) + '</span>') + '</span>' +
+        '<span class="name">' + esc(c.n) + '</span><span class="count">▶</span>';
+    }
     return '<span class="num">' + (i + 1) + '</span>' +
       '<span class="logo">' + (c.l ? logoHtml(c.l) : '<span class="ph">' + esc(store.channelName(c).replace(/^[^A-Za-z0-9ÁÉÍÓÚÑáéíóúñ]+/, '').charAt(0).toUpperCase()) + '</span>') + '</span>' +
       '<span class="name">' + esc(store.channelName(c)) + '</span>' +
@@ -201,7 +205,38 @@
 
   // ------------------------------------------------------------ Pantalla de canales
 
+  // Qué menú se ve en la columna de categorías: 'live' (canales),
+  // 'movies' (películas), 'series' (series) o 'serie' (temporadas de una serie).
+  var catMode = 'live';
+  var currentSeries = null;
+  var seriesGroupId = null;
+
   function buildCategories() {
+    var i;
+    if (catMode === 'movies') {
+      var mcats = [{ id: 'act:back', name: '◀  Volver a canales' }];
+      var mg = store.movieGroups();
+      for (i = 0; i < mg.length; i++) mcats.push({ id: 'mgroup:' + mg[i].key, name: mg[i].name, count: mg[i].count });
+      return mcats;
+    }
+    if (catMode === 'series') {
+      var scats = [{ id: 'act:back', name: '◀  Volver a canales' }];
+      var sg = store.seriesGroups();
+      for (i = 0; i < sg.length; i++) scats.push({ id: 'sgroup:' + sg[i].key, name: sg[i].name, count: sg[i].count });
+      return scats;
+    }
+    if (catMode === 'serie' && currentSeries) {
+      var tcats = [{ id: 'act:back', name: '◀  Volver a series' }];
+      var seasons = store.seasonsOf(currentSeries);
+      for (i = 0; i < seasons.length; i++) {
+        tcats.push({
+          id: 'season:' + seasons[i].season,
+          name: currentSeries.n + ' | ' + (seasons[i].season ? 'Temporada ' + seasons[i].season : 'Capítulos'),
+          count: seasons[i].episodes.length
+        });
+      }
+      return tcats;
+    }
     var cats = [
       { id: 'act:search', name: 'Buscar' },
       { id: 'act:settings', name: 'Ajustes y listas' }
@@ -210,6 +245,12 @@
     var favs = store.favoriteChannels();
     cats.push({ id: 'fav', name: '★  Favoritos', count: favs.length });
     cats.push({ id: 'all', name: 'Todos los canales', count: store.allChannels().length });
+    if (store.movieCount) cats.push({ id: 'act:movies', name: 'Películas  ▶', count: store.movieCount });
+    if (store.seriesCount) cats.push({ id: 'act:series', name: 'Series  ▶', count: store.seriesCount });
+    var smart = store.smartFolders();
+    for (var sf = 0; sf < smart.length; sf++) {
+      cats.push({ id: 'smart:' + smart[sf].id, name: 'Carpeta: ' + smart[sf].name + ' (automática)', count: smart[sf].channels.length });
+    }
     var folders = store.folders();
     for (var f = 0; f < folders.length; f++) {
       cats.push({ id: 'folder:' + folders[f].id, name: 'Carpeta: ' + folders[f].name, count: store.folderChannels(folders[f].id).length });
@@ -228,6 +269,17 @@
     if (cat.id === 'search') return store.search(searchQuery);
     if (cat.id.indexOf('folder:') === 0) return store.folderChannels(cat.id.substring(7));
     if (cat.id.indexOf('group:') === 0) return store.channelsInGroup(cat.id.substring(6));
+    if (cat.id.indexOf('mgroup:') === 0) return store.moviesInGroup(cat.id.substring(7));
+    if (cat.id.indexOf('sgroup:') === 0) return store.seriesInGroup(cat.id.substring(7));
+    if (cat.id.indexOf('smart:') === 0) {
+      var sm = store.smartFolders().filter(function (f) { return 'smart:' + f.id === cat.id; })[0];
+      return sm ? sm.channels : [];
+    }
+    if (cat.id.indexOf('season:') === 0 && currentSeries) {
+      var n = parseInt(cat.id.substring(7), 10);
+      var se = store.seasonsOf(currentSeries).filter(function (x) { return x.season === n; })[0];
+      return se ? se.episodes : [];
+    }
     return [];
   }
 
@@ -235,6 +287,11 @@
     if (!cat) return '';
     if (cat.id === 'act:search') return 'Pulsa OK para buscar un canal por su nombre.';
     if (cat.id === 'act:settings') return 'Pulsa OK para añadir listas, importar la configuración del móvil o cambiar ajustes.';
+    if (cat.id === 'act:movies') return 'Pulsa OK para ver las películas de tus listas.';
+    if (cat.id === 'act:series') return 'Pulsa OK para ver las series de tus listas.';
+    if (cat.id === 'act:back') return 'Pulsa OK para volver.';
+    if (cat.id === 'smart:futbol') return 'No se ha encontrado ningún canal de fútbol en tus listas.';
+    if (cat.id === 'smart:tdt') return 'No se ha encontrado ningún canal de la TDT en tus listas.';
     if (cat.id === 'fav') return 'Aún no tienes favoritos. Ponte encima de un canal y pulsa el botón rojo del mando.';
     if (store.sources.length === 0) return 'Todavía no hay listas. Entra en Ajustes y listas para añadir una.';
     return 'No hay canales aquí.';
@@ -302,6 +359,43 @@
       '<div class="info-sub">' + esc(store.groupName(c.g || '')) + (src ? '<br>Lista: ' + esc(src.name) : '') + '</div>';
   }
 
+  function setCatMode(mode, selectId) {
+    catMode = mode;
+    if (!selectId) {
+      var cats = buildCategories();
+      selectId = cats.length > 1 ? cats[1].id : 'act:back';
+    }
+    renderBrowse(selectId);
+    setBrowseCol(0);
+  }
+
+  function openSeries(info) {
+    seriesGroupId = catList.current() ? catList.current().id : null;
+    catPositions[seriesGroupId] = chanList.index;
+    busy('Cargando capítulos…');
+    store.loadSeriesEpisodes(info).then(function () {
+      busy(null);
+      currentSeries = info;
+      catMode = 'serie';
+      var seasons = store.seasonsOf(info);
+      renderBrowse(seasons.length ? 'season:' + seasons[0].season : 'act:back');
+      setBrowseCol(seasons.length ? 1 : 0);
+    }, function (err) {
+      busy(null);
+      toast((err && err.message) || 'No se han podido cargar los capítulos.', 6000);
+    });
+  }
+
+  /** Volver al menú anterior (de una serie a las series, de las series a los canales). */
+  function catBack() {
+    if (catMode === 'serie') {
+      currentSeries = null;
+      return setCatMode('series', seriesGroupId);
+    }
+    var from = catMode === 'movies' ? 'act:movies' : 'act:series';
+    return setCatMode('live', from);
+  }
+
   function browseKey(a) {
     var list = browseCol === 0 ? catList : chanList;
     if (a === 'up' || a === 'down' || a === 'chup' || a === 'chdown') {
@@ -324,14 +418,19 @@
         if (!cat) return;
         if (cat.id === 'act:search') return openSearch();
         if (cat.id === 'act:settings') return openSettings();
+        if (cat.id === 'act:movies') return setCatMode('movies', null);
+        if (cat.id === 'act:series') return setCatMode('series', null);
+        if (cat.id === 'act:back') return catBack();
         setBrowseCol(1);
+      } else if (chanList.current() && chanList.current().isSeries) {
+        openSeries(chanList.current());
       } else if (chanList.current()) {
         catPositions[catList.current().id] = chanList.index;
         startPlaying(chanList.items, chanList.index, catList.current().name);
       }
       return;
     }
-    if (a === 'red' && browseCol === 1 && chanList.current()) {
+    if (a === 'red' && browseCol === 1 && chanList.current() && !chanList.current().isSeries) {
       var c = chanList.current();
       var on = store.toggleFavorite(c);
       toast(on ? '★ Añadido a favoritos' : 'Quitado de favoritos');
@@ -344,6 +443,7 @@
     if (a === 'blue') return openSettings();
     if (a === 'back') {
       if (browseCol === 1) return setBrowseCol(0);
+      if (catMode !== 'live') return catBack();
       var now = Date.now();
       if (now - lastBackPress < 2500) return exitApp();
       lastBackPress = now;
@@ -731,6 +831,7 @@
         {
           type: 'button', label: 'Buscar', action: function () {
             searchQuery = formValue('q');
+            catMode = 'live';
             form = null;
             show('browse');
             renderBrowse(searchQuery ? 'search' : 'all');

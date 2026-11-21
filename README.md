@@ -75,6 +75,21 @@ Limitaciones de esta primera versión de la tele: la guía de programación solo
 - **Organizar**: estrella = favorito; tres puntos de un canal = carpetas, renombrar, ocultar. Lápiz en grupos o canales = ordenar arrastrando, renombrar y ocultar.
 - **Pasar la configuración del PC al móvil**: Ajustes > Exportar configuración (en el PC) y Ajustes > Importar configuración (en el móvil). El archivo contiene tus contraseñas: no lo compartas.
 
+### Canales, películas y series
+
+La app separa sola lo que hay en tus listas:
+- **Canales**: emisiones en directo.
+- **Películas**: archivos de vídeo (`.mp4`, `.mkv`...), direcciones con `/movie/` o grupos de vídeo bajo demanda (VOD). En Xtream Codes se descargan del apartado de películas del servidor.
+- **Series**: capítulos con `S01E02`, `1x02` o "Temporada 2 Capítulo 5" en el nombre, o direcciones con `/series/`. Se agrupan por serie y por temporada. En Xtream Codes los capítulos se piden al abrir cada serie.
+
+Los menús Películas y Series solo aparecen si alguna lista tiene películas o series. En la tele están dentro de la columna de categorías ("Películas ▶" y "Series ▶").
+
+### Carpetas automáticas: Fútbol y TDT
+
+En **Carpetas** (y en la tele, en la columna de categorías) hay dos carpetas que se rellenan solas cada vez que se actualizan las listas:
+- **Fútbol**: DAZN (salvo F1, baloncesto...), LaLiga, M+ LaLiga, Liga de Campeones, Gol, Real Madrid TV, Barça TV, Premier League, etc., y todos los canales de grupos llamados "Fútbol".
+- **TDT**: los canales de la TDT española, nacionales (La 1, La 2, 24h, Clan, Teledeporte, Antena 3, Cuatro, Telecinco, laSexta, Neox, Nova, Mega, FDF, Energy, Divinity, Be Mad, Boing, Trece, DMAX, DKISS, Ten, Paramount Network, Real Madrid TV, Gol Play...) y autonómicos (TV3, Telemadrid, Canal Sur, À Punt, TVG, ETB, Aragón TV, CMM, IB3, TPA, 7RM, Canal Extremadura, CyLTV, Navarra TV...).
+
 ### Retroceder en directo, grabar y emitir (Android y Windows)
 
 - **Retroceder en directo**: la app guarda los últimos minutos del canal (15 por defecto, se cambia en Ajustes > Retroceder en directo). Con los botones de 10 s, la barra de tiempo o pausando, vas hacia atrás; el botón **Ir al directo** te devuelve. Al cambiar de canal se empieza de cero.
