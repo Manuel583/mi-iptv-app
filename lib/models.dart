@@ -248,6 +248,7 @@ class AppSettings {
   DateTime? lastRefresh;
   DateTime? lastEpgRefresh;
   String lastChannelKey = '';
+  Map<String, dynamic> liveCaptionStyle = {};
 
   Map<String, dynamic> toJson() => {
     'themeMode': themeMode,
@@ -264,6 +265,7 @@ class AppSettings {
     'lastRefresh': lastRefresh?.toIso8601String(),
     'lastEpgRefresh': lastEpgRefresh?.toIso8601String(),
     'lastChannelKey': lastChannelKey,
+    'liveCaptionStyle': liveCaptionStyle,
   };
 
   static AppSettings fromJson(Map<String, dynamic>? j) {
@@ -287,6 +289,8 @@ class AppSettings {
         ? null
         : DateTime.tryParse(j['lastEpgRefresh'] as String);
     s.lastChannelKey = (j['lastChannelKey'] ?? '') as String;
+    s.liveCaptionStyle = ((j['liveCaptionStyle'] as Map?) ?? const {})
+        .cast<String, dynamic>();
     return s;
   }
 }

@@ -19,6 +19,10 @@ class PlaybackService : Service() {
         const val CHANNEL_ID = "reproduccion"
         const val NOTIFICATION_ID = 7
         const val ACTION_STOP = "com.manuel.mi_iptv.STOP"
+
+        /** true mientras los subtítulos en directo captan el sonido. */
+        @Volatile var captionsActive = false
+        var lastTitle = "Mi IPTV"
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -29,22 +33,24 @@ class PlaybackService : Service() {
             stopSelfCompat()
             return START_NOT_STICKY
         }
-        val title = intent?.getStringExtra("title") ?: "Mi IPTV"
+        val title = intent?.getStringExtra("title") ?: lastTitle
+        lastTitle = title
         createChannel()
         val notification = buildNotification(title)
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                startForeground(
-                    NOTIFICATION_ID,
-                    notification,
-                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
-                )
+                var type = ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+                if (captionsActive) {
+                    type = type or ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION
+                }
+                startForeground(NOTIFICATION_ID, notification, type)
             } else {
                 startForeground(NOTIFICATION_ID, notification)
             }
         } catch (_: Exception) {
             stopSelf()
         }
+        if (captionsActive) MainActivity.instance?.captions?.onServiceReady()
         return START_NOT_STICKY
     }
 

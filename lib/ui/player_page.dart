@@ -13,6 +13,7 @@ import '../app_state.dart';
 import '../models.dart';
 import '../native.dart';
 import 'common.dart';
+import 'live_captions.dart';
 import 'mosaic_page.dart';
 
 bool get _isWindows => !kIsWeb && Platform.isWindows;
@@ -252,6 +253,7 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
       NativeBridge.onStopRequested = null;
     }
     if (_isAndroid) {
+      LiveCaptions.stop();
       NativeBridge.setPipEnabled(false);
       NativeBridge.stopPlaybackService();
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
@@ -437,6 +439,14 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
     _hideTimer = Timer(const Duration(seconds: 4), () {
       if (mounted) setState(() => _controls = false);
     });
+  }
+
+  Future<void> _toggleLiveCaptions() async {
+    final error = await LiveCaptions.toggle();
+    if (error != null && mounted) {
+      ScaffoldMessenger.maybeOf(context)
+          ?.showSnackBar(SnackBar(content: Text(error)));
+    }
   }
 
   void _showControls() {
@@ -746,6 +756,10 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
               child: CircularProgressIndicator(color: Colors.white70),
             ),
           if (_status != null) Center(child: _StatusBox(text: _status!)),
+          if (liveCaptionsPlatform)
+            Positioned.fill(
+              child: LiveCaptionOverlay(controlsVisible: _controls),
+            ),
           if (_banner || _controls)
             Positioned(top: 0, left: 0, right: 0, child: _topBar(now, next)),
           if (_controls)
@@ -819,6 +833,20 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
               ],
             ),
           ),
+          if (liveCaptionsPlatform)
+            ValueListenableBuilder<bool>(
+              valueListenable: LiveCaptions.active,
+              builder: (context, on, _) => IconButton(
+                tooltip: on
+                    ? 'Apagar subtítulos en directo'
+                    : 'Subtítulos en directo',
+                color: on ? Colors.amber : Colors.white,
+                icon: Icon(
+                  on ? Icons.closed_caption : Icons.closed_caption_outlined,
+                ),
+                onPressed: _toggleLiveCaptions,
+              ),
+            ),
           IconButton(
             tooltip: app.isFavorite(_channel)
                 ? 'Quitar de favoritos'

@@ -17,6 +17,7 @@ class MainActivity : FlutterActivity() {
     }
 
     private var channel: MethodChannel? = null
+    var captions: LiveCaptions? = null
     private var pipEnabled = false
     private var askedNotifications = false
 
@@ -25,6 +26,11 @@ class MainActivity : FlutterActivity() {
         instance = this
         val ch = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "mi_iptv/native")
         channel = ch
+        if (Build.VERSION.SDK_INT >= 33) {
+            captions = LiveCaptions(this) { method, args ->
+                runOnUiThread { channel?.invokeMethod(method, args) }
+            }
+        }
         ch.setMethodCallHandler { call, result ->
             when (call.method) {
                 "isPipSupported" -> result.success(pipSupported())
@@ -43,12 +49,35 @@ class MainActivity : FlutterActivity() {
                     stopPlaybackService()
                     result.success(null)
                 }
+                "captionsSupported" -> result.success(captions?.isSupported() == true)
+                "startCaptions" ->
+                    captions?.start(call.argument<String>("lang") ?: "es-ES", result)
+                        ?: result.success("unsupported")
+                "stopCaptions" -> {
+                    captions?.stop()
+                    result.success(null)
+                }
                 else -> result.notImplemented()
             }
         }
     }
 
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        if (captions?.onActivityResult(requestCode, resultCode, data) == true) return
+        super.onActivityResult(requestCode, resultCode, data)
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        if (captions?.onPermissionResult(requestCode, grantResults) == true) return
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+    }
+
     override fun onDestroy() {
+        captions?.stop()
         stopPlaybackService()
         if (instance == this) instance = null
         super.onDestroy()
