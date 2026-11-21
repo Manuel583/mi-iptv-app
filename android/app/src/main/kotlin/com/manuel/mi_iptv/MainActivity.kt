@@ -22,6 +22,7 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        AppUpdater.register(flutterEngine, this)
         instance = this
         val ch = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "mi_iptv/native")
         channel = ch

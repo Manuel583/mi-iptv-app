@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import '../app_state.dart';
 import 'common.dart';
 import 'sources_page.dart';
+import 'update_section.dart';
 
 const _palette = <int>[
   0xFF1565C0, // azul
@@ -229,6 +230,8 @@ class SettingsPage extends StatelessWidget {
               subtitle: const Text('Sustituye la configuración actual'),
               onTap: () => importConfigFlow(context),
             ),
+
+            UpdateSection(header: section('Actualizaciones de la app')),
 
             section('Acerca de'),
             const ListTile(

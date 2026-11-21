@@ -59,7 +59,7 @@ jobs:
       - name: Compilar APK
         env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-        run: flutter build apk --release --build-name=${{ env.APP_VERSION }} --build-number=${{ github.run_number }}
+        run: flutter build apk --release --build-name=${{ env.APP_VERSION }} --build-number=${{ github.run_number }} --dart-define=APP_VERSION=${{ env.APP_VERSION }}
 
       - name: Preparar archivo
         run: |
@@ -88,7 +88,7 @@ jobs:
         run: flutter pub get
 
       - name: Compilar Windows
-        run: flutter build windows --release --build-name=${{ env.APP_VERSION }} --build-number=${{ github.run_number }}
+        run: flutter build windows --release --build-name=${{ env.APP_VERSION }} --build-number=${{ github.run_number }} --dart-define=APP_VERSION=${{ env.APP_VERSION }}
 
       - name: Crear ZIP portable
         shell: pwsh
@@ -145,6 +145,8 @@ jobs:
   publicar:
     name: Publicar en Releases
     needs: [android, windows, samsung-tv]
+    # "[sin publicar]" en el commit: compila y prueba, pero no crea versión nueva.
+    if: ${{ !contains(github.event.head_commit.message, '[sin publicar]') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
