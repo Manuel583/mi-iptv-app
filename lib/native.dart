@@ -53,4 +53,8 @@ class NativeBridge {
       _call('startService', {'title': title});
 
   static Future<void> stopPlaybackService() => _call('stopService');
+
+  /// Hace que una grabación aparezca en la galería y en "Archivos".
+  static Future<void> scanFile(String path) =>
+      _call('scanFile', {'path': path});
 }

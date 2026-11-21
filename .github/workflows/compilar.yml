@@ -145,6 +145,8 @@ jobs:
   publicar:
     name: Publicar en Releases
     needs: [android, windows, samsung-tv]
+    # "[sin publicar]" en el commit: compila y prueba, pero no crea versión nueva.
+    if: ${{ !contains(github.event.head_commit.message, '[sin publicar]') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4

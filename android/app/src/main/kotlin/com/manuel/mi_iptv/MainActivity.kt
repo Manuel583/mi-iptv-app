@@ -5,6 +5,7 @@ import android.app.PictureInPictureParams
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
+import android.media.MediaScannerConnection
 import android.os.Build
 import android.util.Rational
 import io.flutter.embedding.android.FlutterActivity
@@ -37,6 +38,16 @@ class MainActivity : FlutterActivity() {
                 "startService" -> {
                     requestNotificationPermission()
                     startPlaybackService(call.argument<String>("title") ?: "Mi IPTV")
+                    result.success(null)
+                }
+                "scanFile" -> {
+                    val path = call.argument<String>("path")
+                    if (path != null) {
+                        try {
+                            MediaScannerConnection.scanFile(this, arrayOf(path), null, null)
+                        } catch (_: Exception) {
+                        }
+                    }
                     result.success(null)
                 }
                 "stopService" -> {
