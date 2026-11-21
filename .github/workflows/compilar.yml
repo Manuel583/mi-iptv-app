@@ -59,7 +59,7 @@ jobs:
       - name: Compilar APK
         env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-        run: flutter build apk --release --build-name=${{ env.APP_VERSION }} --build-number=${{ github.run_number }} --dart-define=APP_VERSION=${{ env.APP_VERSION }}
+        run: flutter build apk --release --build-name=${{ env.APP_VERSION }} --build-number=${{ github.run_number }} --dart-define=GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }} --dart-define=GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }} --dart-define=APP_VERSION=${{ env.APP_VERSION }}
 
       - name: Preparar archivo
         run: |
@@ -88,7 +88,7 @@ jobs:
         run: flutter pub get
 
       - name: Compilar Windows
-        run: flutter build windows --release --build-name=${{ env.APP_VERSION }} --build-number=${{ github.run_number }} --dart-define=APP_VERSION=${{ env.APP_VERSION }}
+        run: flutter build windows --release --build-name=${{ env.APP_VERSION }} --build-number=${{ github.run_number }} --dart-define=GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }} --dart-define=GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }} --dart-define=APP_VERSION=${{ env.APP_VERSION }}
 
       - name: Crear ZIP portable
         shell: pwsh
@@ -126,13 +126,15 @@ jobs:
           node-version: '22'
 
       - name: Pruebas
-        run: node --test tizen/test/parsers.test.js
+        run: node --test tizen/test/parsers.test.js tizen/test/sync.test.js
 
       - name: Empaquetar para Samsung TV
         run: |
           mkdir -p dist
           sed -i 's/version="1.0.0"/version="${{ env.APP_VERSION }}"/' tizen/config.xml
           sed -i "s/var VERSION = '1.0.0'/var VERSION = '${{ env.APP_VERSION }}'/" tizen/js/app.js
+          # Permiso de Google para sincronizar (secretos del repositorio, nunca en el código).
+          sed -i "s|__GOOGLE_CLIENT_ID__|${{ secrets.GOOGLE_CLIENT_ID }}|; s|__GOOGLE_CLIENT_SECRET__|${{ secrets.GOOGLE_CLIENT_SECRET }}|" tizen/js/sync.js
           cd tizen
           zip -r -X ../dist/mi-iptv-samsung-tv.wgt config.xml index.html icon.png css js
 

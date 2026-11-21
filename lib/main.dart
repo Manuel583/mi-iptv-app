@@ -10,13 +10,39 @@ import 'package:window_manager/window_manager.dart';
 import 'app_state.dart';
 import 'native.dart';
 import 'updater.dart';
+import 'cloud_sync.dart';
+import 'scheduler.dart';
 import 'ui/home_page.dart';
+import 'ui/recorder_window.dart';
+
+// ignore: unused_element
+AppLifecycleListener? _lifecycle;
 
 bool get isWindows => !kIsWeb && Platform.isWindows;
 bool get isAndroid => !kIsWeb && Platform.isAndroid;
 
-Future<void> main() async {
+Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Windows: el Programador de tareas abre la app así para grabar.
+  final rec = args.indexOf('--grabar');
+  if (isWindows && rec >= 0 && rec + 1 < args.length) {
+    await windowManager.ensureInitialized();
+    await windowManager.waitUntilReadyToShow(
+      const WindowOptions(
+        title: 'Mi IPTV | Grabando',
+        size: Size(440, 220),
+        minimumSize: Size(360, 200),
+        alwaysOnTop: false,
+        skipTaskbar: false,
+      ),
+      () async {
+        await windowManager.show(inactive: true);
+        await windowManager.minimize();
+      },
+    );
+    runApp(RecorderApp(id: args[rec + 1]));
+    return;
+  }
   MediaKit.ensureInitialized();
   NativeBridge.init();
   if (isWindows) {
@@ -36,10 +62,19 @@ Future<void> main() async {
   }
   await app.load();
   await updater.load();
+  unawaited(RecordingScheduler.instance.load());
+  unawaited(CloudSync.instance.load());
   runApp(const MiIptvApp());
   // Busca versiones nuevas al arrancar (como mucho una vez al día).
   unawaited(
     Future<void>.delayed(const Duration(seconds: 5), updater.checkOnStartup),
+  );
+  // Al volver a la app: traer cambios de otros aparatos y ver grabaciones.
+  _lifecycle = AppLifecycleListener(
+    onResume: () {
+      CloudSync.instance.onResume();
+      RecordingScheduler.instance.refreshStatuses();
+    },
   );
 }
 

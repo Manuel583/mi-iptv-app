@@ -11,6 +11,8 @@
   function Player(opts) {
     this.onState = opts.onState || function () {};
     this.onError = opts.onError || function () {};
+    this.onSubtitle = opts.onSubtitle || function () {};
+    this.preferredAudio = opts.preferredAudio || function () { return ''; };
     this.objectEl = opts.objectEl;
     this.videoEl = opts.videoEl;
     this.useAvplay = hasAvplay();
@@ -70,12 +72,16 @@
         onbufferingcomplete: function () { if (token === self._token) self.onState('playing'); },
         onstreamcompleted: function () { if (token === self._token) self._failed('La emisión se ha cortado.'); },
         onerror: function (type) { if (token === self._token) self._failed('Error de reproducción (' + type + ').'); },
-        onevent: function () {}
+        onevent: function () {},
+        onsubtitlechange: function (duration, text) {
+          if (token === self._token) self.onSubtitle(text || '', Number(duration) || 0);
+        }
       });
       av.prepareAsync(function () {
         if (token !== self._token) return;
         try {
           av.play();
+          self._applyPreferredAudio();
           self.onState('playing');
         } catch (e6) {
           self._failed('No se pudo empezar a reproducir.');
@@ -131,29 +137,101 @@
     this.onState('stopped');
   };
 
-  /** Pistas de audio disponibles (solo en el televisor). */
-  Player.prototype.audioTracks = function () {
+  // Formas en que las emisiones marcan cada idioma (igual que en el móvil).
+  var LANGS = {
+    es: ['es', 'spa', 'esp', 'cas', 'spanish'],
+    en: ['en', 'eng', 'english'],
+    ca: ['ca', 'cat', 'catalan'],
+    eu: ['eu', 'eus', 'baq', 'basque'],
+    gl: ['gl', 'glg', 'galician'],
+    fr: ['fr', 'fre', 'fra', 'french'],
+    pt: ['pt', 'por', 'portuguese'],
+    it: ['it', 'ita', 'italian'],
+    de: ['de', 'ger', 'deu', 'german']
+  };
+  var LANG_NAMES = {
+    es: 'Español', en: 'Inglés', ca: 'Catalán', eu: 'Euskera', gl: 'Gallego',
+    fr: 'Francés', pt: 'Portugués', it: 'Italiano', de: 'Alemán'
+  };
+
+  /** Convierte "spa", "es"… en un código corto ("es"), o '' si no se conoce. */
+  function langCode(lang) {
+    var l = String(lang || '').toLowerCase();
+    for (var k in LANGS) {
+      if (LANGS.hasOwnProperty(k) && LANGS[k].indexOf(l) >= 0) return k;
+    }
+    return '';
+  }
+  Player.langCode = langCode;
+  Player.langName = function (code) { return LANG_NAMES[code] || ''; };
+
+  /**
+   * Pistas de audio ('AUDIO') o de subtítulos ('TEXT') de la emisión
+   * (solo en el televisor). Cada una: {index, lang, label, selected}.
+   */
+  Player.prototype.tracks = function (type) {
     if (!this.useAvplay) return [];
+    var av = root.webapis.avplay;
+    var all;
+    try { all = av.getTotalTrackInfo(); } catch (e) { return []; }
+    var current = -1;
     try {
-      return root.webapis.avplay.getTotalTrackInfo().filter(function (t) { return t.type === 'AUDIO'; });
+      var cur = av.getCurrentStreamInfo();
+      for (var c = 0; c < cur.length; c++) {
+        if (cur[c].type === type) current = cur[c].index;
+      }
+    } catch (e2) { /* modelos antiguos */ }
+    var out = [];
+    var n = 0;
+    for (var i = 0; i < all.length; i++) {
+      var t = all[i];
+      if (t.type !== type) continue;
+      n++;
+      var info = {};
+      try { info = JSON.parse(t.extra_info) || {}; } catch (e3) { info = {}; }
+      var lang = info.language || info.track_lang || '';
+      var name = LANG_NAMES[langCode(lang)] || (lang ? String(lang).toUpperCase() : 'Pista ' + n);
+      if (info.fourCC) name += ' | ' + info.fourCC;
+      out.push({ index: t.index, lang: lang, label: name, selected: t.index === current });
+    }
+    if (type === 'TEXT' && this._subsOff) {
+      for (var j = 0; j < out.length; j++) out[j].selected = false;
+    }
+    return out;
+  };
+
+  /** Elige una pista. Para subtítulos, index = -1 los apaga. */
+  Player.prototype.selectTrack = function (type, index) {
+    if (!this.useAvplay) return false;
+    var av = root.webapis.avplay;
+    try {
+      if (type === 'TEXT') {
+        this._subsOff = index < 0;
+        av.setSilentSubtitle(index < 0);
+        if (index < 0) {
+          this.onSubtitle('', 0);
+          return true;
+        }
+      }
+      av.setSelectTrack(type, index);
+      return true;
     } catch (e) {
-      return [];
+      return false;
     }
   };
 
-  Player.prototype.nextAudioTrack = function () {
-    var tracks = this.audioTracks();
-    if (tracks.length < 2) return null;
-    this._audioIdx = ((this._audioIdx || 0) + 1) % tracks.length;
-    var t = tracks[this._audioIdx];
-    try {
-      root.webapis.avplay.setSelectTrack('AUDIO', t.index);
-    } catch (e) {
-      return null;
+  Player.prototype._applyPreferredAudio = function () {
+    var want = this.preferredAudio();
+    this._subsOff = true;
+    try { root.webapis.avplay.setSilentSubtitle(true); } catch (e) { /* nada */ }
+    if (!want) return;
+    var list = this.tracks('AUDIO');
+    for (var i = 0; i < list.length; i++) {
+      if (langCode(list[i].lang) === want) {
+        if (!list[i].selected) this.selectTrack('AUDIO', list[i].index);
+        return;
+      }
     }
-    var lang = '';
-    try { lang = JSON.parse(t.extra_info).language || ''; } catch (e2) { lang = ''; }
-    return 'Audio ' + (this._audioIdx + 1) + ' de ' + tracks.length + (lang ? ' (' + lang + ')' : '');
   };
 
   // Al salir de la app o apagar la pantalla, se para; al volver, se reanuda.

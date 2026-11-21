@@ -17,7 +17,11 @@ void main() {
         buf.writeln('http://example.com/$g/$i.ts');
       }
     }
-    final src = PlaylistSource(id: 't', name: 'Prueba', type: SourceType.m3uUrl);
+    final src = PlaylistSource(
+      id: 't',
+      name: 'Prueba',
+      type: SourceType.m3uUrl,
+    );
     app.debugSetData(src, parseM3u(buf.toString(), 't').channels);
   });
 
@@ -50,7 +54,9 @@ void main() {
       }
       expect(find.text('Mis listas'), findsOneWidget);
 
-      await t.pumpWidget(MaterialApp(home: Scaffold(body: const FavoritesPage())));
+      await t.pumpWidget(
+        MaterialApp(home: Scaffold(body: const FavoritesPage())),
+      );
       await t.pumpAndSettle();
       expect(find.text('Mi canal'), findsOneWidget);
       await t.pumpWidget(MaterialApp(home: FolderPage(folder: f)));
@@ -58,9 +64,12 @@ void main() {
       await t.pumpWidget(const MaterialApp(home: SourcesPage()));
       await t.pumpAndSettle();
       await t.pumpWidget(
-          const MaterialApp(home: SourceEditorPage(type: SourceType.xtream)));
+        const MaterialApp(home: SourceEditorPage(type: SourceType.xtream)),
+      );
       await t.pumpAndSettle();
-      await t.pumpWidget(const MaterialApp(home: Scaffold(body: SettingsPage())));
+      await t.pumpWidget(
+        const MaterialApp(home: Scaffold(body: SettingsPage())),
+      );
       await t.pumpAndSettle();
       app.deleteFolder(f);
       app.toggleFavorite(c);

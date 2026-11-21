@@ -1,4 +1,5 @@
 // Puente con el código nativo de Android (imagen flotante y segundo plano).
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -86,4 +87,32 @@ class NativeBridge {
       (await _call<String>('startCaptions', {'lang': lang})) ?? 'unsupported';
 
   static Future<void> stopCaptions() => _call('stopCaptions');
+
+  // ------------------------------------------------ Grabación programada
+
+  /// Entrega al sistema la lista de grabaciones pendientes (JSON) para que
+  /// programe las alarmas. Devuelve false si algo falló.
+  static Future<bool> recorderSchedule(String json) async =>
+      (await _call<bool>('recorderSchedule', {'items': json})) ?? false;
+
+  static Future<void> recorderCancel(String id) =>
+      _call('recorderCancel', {'id': id});
+
+  /// Estado de cada grabación: {id: {status, path, error, bytes}}.
+  static Future<Map<String, dynamic>> recorderStatuses() async {
+    final s = await _call<String>('recorderStatuses');
+    if (s == null || s.isEmpty) return {};
+    try {
+      return Map<String, dynamic>.from(jsonDecode(s) as Map);
+    } catch (_) {
+      return {};
+    }
+  }
+
+  /// true si Android puede limitar la app en segundo plano (ahorro de batería).
+  static Future<bool> batteryRestricted() async =>
+      (await _call<bool>('batteryRestricted')) ?? false;
+
+  /// Abre el aviso de Android para quitar el ahorro de batería a la app.
+  static Future<void> askBatteryExemption() => _call('askBatteryExemption');
 }

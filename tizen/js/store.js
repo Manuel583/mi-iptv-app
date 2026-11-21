@@ -33,7 +33,7 @@
   }
 
   function emptySettings() {
-    return { userAgent: '', showHidden: false, lastChannelKey: '', autoRefreshHours: 12, lastRefresh: null };
+    return { userAgent: '', showHidden: false, lastChannelKey: '', autoRefreshHours: 12, lastRefresh: null, audioLanguage: '' };
   }
 
   function newId() {

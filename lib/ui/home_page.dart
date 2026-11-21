@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../app_state.dart';
 import 'browse_page.dart';
+import 'guide_page.dart';
 import 'common.dart';
 import 'folders_page.dart';
 import 'recordings_page.dart';
@@ -69,6 +70,12 @@ class _HomePageState extends State<HomePage> {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 ),
               ),
+            IconButton(
+              tooltip: 'Guía de programación',
+              icon: const Icon(Icons.view_timeline_outlined),
+              onPressed: () => Navigator.of(context)
+                  .push(MaterialPageRoute(builder: (_) => const GuidePage())),
+            ),
             IconButton(
               tooltip: 'Buscar canal',
               icon: const Icon(Icons.search),

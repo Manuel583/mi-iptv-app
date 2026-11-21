@@ -133,3 +133,12 @@ html, body {
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 @-webkit-keyframes spin { to { -webkit-transform: rotate(360deg); } }
+
+/* Subtítulos de la emisión */
+.subs {
+  position: absolute; left: 160px; right: 160px; bottom: 90px;
+  text-align: center; font-size: 46px; line-height: 1.25; color: #fff;
+  text-shadow: 0 0 6px #000, 0 0 3px #000, 2px 2px 2px #000;
+}
+.radio { display: inline-block; width: 40px; color: #8ab4ff; }
+.bigcode { display: inline-block; margin: 16px 0; font-size: 72px; font-weight: bold; letter-spacing: 6px; color: #fff; }

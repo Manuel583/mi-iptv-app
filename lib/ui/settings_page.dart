@@ -5,11 +5,15 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
+import '../cloud_sync.dart';
 import '../recordings.dart';
 import 'common.dart';
 import 'live_captions.dart';
+import 'player_page.dart' show preferredLanguages;
 import 'recordings_page.dart';
+import 'scheduled_page.dart';
 import 'sources_page.dart';
+import 'sync_page.dart';
 import 'update_section.dart';
 
 const _palette = <int>[
@@ -61,6 +65,20 @@ class SettingsPage extends StatelessWidget {
               trailing: const Icon(Icons.chevron_right),
               onTap: () => Navigator.of(context)
                   .push(MaterialPageRoute(builder: (_) => const SourcesPage())),
+            ),
+            ListTile(
+              leading: const Icon(Icons.cloud_sync_outlined),
+              title: const Text('Sincronizar con Google Drive'),
+              subtitle: ListenableBuilder(
+                listenable: CloudSync.instance,
+                builder: (context, _) => Text(
+                  CloudSync.instance.connected
+                      ? 'Conectado con ${CloudSync.instance.account}'
+                      : 'Pasa tu configuración al móvil, al PC y a la tele',
+                ),
+              ),
+              onTap: () => Navigator.of(context)
+                  .push(MaterialPageRoute(builder: (_) => const SyncPage())),
             ),
             ListTile(
               leading: const Icon(Icons.update),
@@ -216,6 +234,54 @@ class SettingsPage extends StatelessWidget {
                   app.updateSettings((s) => s.timeshiftMinutes = v);
                 }
               },
+            ),
+            ListTile(
+              leading: const Icon(Icons.record_voice_over_outlined),
+              title: const Text('Idioma de audio preferido'),
+              trailing: DropdownButton<String>(
+                value: s.audioLanguage,
+                items: [
+                  const DropdownMenuItem(
+                    value: '',
+                    child: Text('El del canal'),
+                  ),
+                  for (final e in preferredLanguages.entries)
+                    DropdownMenuItem(value: e.key, child: Text(e.value)),
+                ],
+                onChanged: (v) =>
+                    app.updateSettings((s) => s.audioLanguage = v ?? ''),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.subtitles_outlined),
+              title: const Text('Subtítulos de la emisión'),
+              trailing: DropdownButton<String>(
+                value: s.subtitleLanguage,
+                items: [
+                  const DropdownMenuItem(
+                    value: '',
+                    child: Text('Desactivados'),
+                  ),
+                  for (final e in preferredLanguages.entries)
+                    DropdownMenuItem(value: e.key, child: Text(e.value)),
+                ],
+                onChanged: (v) =>
+                    app.updateSettings((s) => s.subtitleLanguage = v ?? ''),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.event_note_outlined),
+              title: const Text('Grabaciones programadas'),
+              subtitle: Text(
+                'Empiezan ${s.recordBeforeMinutes} min antes y acaban '
+                '${s.recordAfterMinutes} min después del horario de la guía',
+              ),
+              onTap: () => openScheduledRecordings(context),
+              trailing: IconButton(
+                tooltip: 'Cambiar márgenes',
+                icon: const Icon(Icons.tune),
+                onPressed: () => _editMargins(context),
+              ),
             ),
             ListTile(
               leading: const Icon(Icons.video_library_outlined),
@@ -465,5 +531,59 @@ class _EpgUrlsPage extends StatelessWidget {
         },
       ),
     );
+  }
+}
+
+Future<void> _editMargins(BuildContext context) async {
+  final s = app.settings;
+  var before = s.recordBeforeMinutes;
+  var after = s.recordAfterMinutes;
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, upd) => AlertDialog(
+        title: const Text('Márgenes de grabación'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Los horarios de la guía no siempre son exactos. '
+              'Grabar un poco antes y después evita perder el principio o el final.',
+            ),
+            const SizedBox(height: 12),
+            Text('Empezar $before min antes'),
+            Slider(
+              value: before.toDouble(),
+              max: 15,
+              divisions: 15,
+              onChanged: (v) => upd(() => before = v.round()),
+            ),
+            Text('Acabar $after min después'),
+            Slider(
+              value: after.toDouble(),
+              max: 30,
+              divisions: 30,
+              onChanged: (v) => upd(() => after = v.round()),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    ),
+  );
+  if (ok == true) {
+    app.updateSettings((s) {
+      s.recordBeforeMinutes = before;
+      s.recordAfterMinutes = after;
+    });
   }
 }

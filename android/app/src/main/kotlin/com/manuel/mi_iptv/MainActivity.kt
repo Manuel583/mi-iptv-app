@@ -69,7 +69,7 @@ class MainActivity : FlutterActivity() {
                     captions?.stop()
                     result.success(null)
                 }
-                else -> result.notImplemented()
+                else -> if (!RecorderBridge.handle(this, call, result)) result.notImplemented()
             }
         }
     }

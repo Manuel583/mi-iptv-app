@@ -154,7 +154,8 @@ class ChannelTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (now, _) = app.nowNext(channel);
+    app.requestProgrammes(channel);
+    final (now, next) = app.nowNext(channel);
     final hidden = app.isHidden(channel);
     final fav = app.isFavorite(channel);
     final cs = Theme.of(context).colorScheme;
@@ -177,6 +178,16 @@ class ChannelTile extends StatelessWidget {
             minHeight: 3,
             borderRadius: BorderRadius.circular(2),
           ),
+          if (next != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+                'Después: ${hhmm(next.start)} ${next.title}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
           if (subtitleParts.isNotEmpty)
             Text(
               subtitleParts.join(' | '),
