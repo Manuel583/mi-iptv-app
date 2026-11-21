@@ -54,7 +54,7 @@ class MainActivity : FlutterActivity() {
                     stopPlaybackService()
                     result.success(null)
                 }
-                else -> result.notImplemented()
+                else -> if (!RecorderBridge.handle(this, call, result)) result.notImplemented()
             }
         }
     }

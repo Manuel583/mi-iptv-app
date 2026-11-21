@@ -246,6 +246,10 @@ class AppSettings {
   bool backgroundAudio = true;
   bool hardwareDecoding = true;
   int timeshiftMinutes = 15; // 0 = desactivado
+  int recordBeforeMinutes = 2; // margen al grabar desde la guía
+  int recordAfterMinutes = 5;
+  String audioLanguage = ''; // '' = la que venga por defecto
+  String subtitleLanguage = ''; // '' = sin subtítulos
   DateTime? lastRefresh;
   DateTime? lastEpgRefresh;
   String lastChannelKey = '';
@@ -263,6 +267,10 @@ class AppSettings {
     'backgroundAudio': backgroundAudio,
     'hardwareDecoding': hardwareDecoding,
     'timeshiftMinutes': timeshiftMinutes,
+    'recordBeforeMinutes': recordBeforeMinutes,
+    'recordAfterMinutes': recordAfterMinutes,
+    'audioLanguage': audioLanguage,
+    'subtitleLanguage': subtitleLanguage,
     'lastRefresh': lastRefresh?.toIso8601String(),
     'lastEpgRefresh': lastEpgRefresh?.toIso8601String(),
     'lastChannelKey': lastChannelKey,
@@ -283,6 +291,10 @@ class AppSettings {
     s.backgroundAudio = (j['backgroundAudio'] ?? true) as bool;
     s.hardwareDecoding = (j['hardwareDecoding'] ?? true) as bool;
     s.timeshiftMinutes = (j['timeshiftMinutes'] ?? 15) as int;
+    s.recordBeforeMinutes = (j['recordBeforeMinutes'] ?? 2) as int;
+    s.recordAfterMinutes = (j['recordAfterMinutes'] ?? 5) as int;
+    s.audioLanguage = (j['audioLanguage'] ?? '') as String;
+    s.subtitleLanguage = (j['subtitleLanguage'] ?? '') as String;
     s.lastRefresh = j['lastRefresh'] == null
         ? null
         : DateTime.tryParse(j['lastRefresh'] as String);

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../models.dart';
 import '../recordings.dart';
 import 'common.dart';
+import 'scheduled_page.dart';
 
 /// Lista de grabaciones guardadas en el dispositivo.
 class RecordingsPage extends StatefulWidget {
@@ -71,6 +72,11 @@ class _RecordingsPageState extends State<RecordingsPage> {
       appBar: AppBar(
         title: const Text('Grabaciones'),
         actions: [
+          IconButton(
+            tooltip: 'Grabaciones programadas',
+            icon: const Icon(Icons.event_note_outlined),
+            onPressed: () => openScheduledRecordings(context),
+          ),
           IconButton(
             tooltip: 'Actualizar',
             icon: const Icon(Icons.refresh),

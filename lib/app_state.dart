@@ -325,9 +325,64 @@ class AppController extends ChangeNotifier {
   /// Programación del canal (o null si no hay guía).
   List<Programme>? programmesFor(Channel c) {
     if (_epgCache.containsKey(c.key)) return _epgCache[c.key];
-    final p = epg.lookup(c);
+    final p = epg.lookup(c) ?? _xtreamEpg[c.key];
     _epgCache[c.key] = p;
     return p;
+  }
+
+  // Guía pedida canal a canal al servidor Xtream, para los canales que no
+  // aparecen en la guía completa (xmltv.php).
+  final Map<String, List<Programme>> _xtreamEpg = {};
+  final Set<String> _xtreamAsked = {};
+  int _xtreamRunning = 0;
+  final List<Channel> _xtreamQueue = [];
+
+  /// Si el canal no tiene guía y es de una lista Xtream, la pide al servidor.
+  void requestProgrammes(Channel c) {
+    if (epgLoading || !_xtreamAsked.add(c.key)) return;
+    final p = programmesFor(c);
+    if (p != null && p.isNotEmpty) return;
+    final s = sources.where((s) => s.id == c.sourceId).firstOrNull;
+    if (s == null || s.type != SourceType.xtream || !s.useIncludedEpg) return;
+    _xtreamQueue.add(c);
+    _pumpXtream();
+  }
+
+  void _pumpXtream() {
+    while (_xtreamRunning < 3 && _xtreamQueue.isNotEmpty) {
+      final c = _xtreamQueue.removeLast();
+      _xtreamRunning++;
+      _fetchXtreamEpg(c).whenComplete(() {
+        _xtreamRunning--;
+        _pumpXtream();
+      });
+    }
+  }
+
+  Future<void> _fetchXtreamEpg(Channel c) async {
+    final s = sources.where((s) => s.id == c.sourceId).firstOrNull;
+    final id = xtreamStreamId(c.url);
+    if (s == null || id == null) return;
+    final base =
+        '${s.server}/player_api.php?username=${Uri.encodeQueryComponent(s.username)}&password=${Uri.encodeQueryComponent(s.password)}';
+    for (final action in [
+      'get_simple_data_table&stream_id=$id',
+      'get_short_epg&stream_id=$id&limit=50',
+    ]) {
+      try {
+        final text = await _getText('$base&action=$action');
+        final list = parseXtreamEpg(text);
+        if (list.isNotEmpty) {
+          _xtreamEpg[c.key] = list;
+          _epgCache.remove(c.key);
+          revision++;
+          notifyListeners();
+          return;
+        }
+      } catch (e) {
+        debugPrint('Guía Xtream de ${c.name}: $e');
+      }
+    }
   }
 
   (Programme?, Programme?) nowNext(Channel c) =>
@@ -696,6 +751,7 @@ class AppController extends ChangeNotifier {
     }
     epg = merged;
     _epgCache.clear();
+    _xtreamAsked.clear();
     revision++;
     notifyListeners();
   }

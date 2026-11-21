@@ -169,6 +169,9 @@
   var catList;
   var chanList;
   var sideList;
+  var trackList;
+  var trackType = '';   // '' = lista de canales; 'AUDIO' o 'TEXT' = pistas
+  var subsTimer = null;
   var player;
   var searchQuery = '';
   var playList = [];   // canales de la lista desde la que se está viendo
@@ -444,6 +447,7 @@
   }
 
   function openSide() {
+    trackType = '';
     sideOpen = true;
     $('side').classList.remove('hidden');
     $('side-title').textContent = playListTitle || 'Canales';
@@ -455,10 +459,75 @@
 
   function closeSide() {
     sideOpen = false;
+    trackType = '';
     $('side').classList.add('hidden');
   }
 
+  // ------------------------------------------------------------ Pistas
+
+  function trackRow(t) {
+    return '<span class="radio">' + (t.selected ? '●' : '○') + '</span> ' + esc(t.label);
+  }
+
+  function openTracks(type) {
+    var list = player.tracks(type);
+    if (type === 'AUDIO' && !list.length) return toast('Este canal solo tiene un idioma de audio');
+    if (type === 'TEXT') {
+      if (!list.length) return toast('Este canal no emite subtítulos');
+      var off = true;
+      for (var i = 0; i < list.length; i++) if (list[i].selected) off = false;
+      list.unshift({ index: -1, label: 'Sin subtítulos', selected: off });
+    }
+    trackType = type;
+    sideOpen = true;
+    $('side').classList.remove('hidden');
+    $('side-title').textContent = type === 'AUDIO' ? 'Idioma de audio' : 'Subtítulos';
+    var sel = 0;
+    for (var j = 0; j < list.length; j++) if (list[j].selected) sel = j;
+    trackList.setActive(true);
+    trackList.set(list, sel);
+    clearTimeout(osdTimer);
+    $('osd').classList.add('hidden');
+  }
+
+  function chooseTrack() {
+    var t = trackList.current();
+    var type = trackType;
+    closeSide();
+    if (!t) return;
+    if (!player.selectTrack(type, t.index)) return toast('No se pudo cambiar la pista');
+    if (type === 'AUDIO') {
+      var code = root.MiPlayer.langCode(t.lang);
+      if (code && store.settings.audioLanguage !== code) {
+        store.settings.audioLanguage = code;
+        store.save();
+        toast('Audio en ' + root.MiPlayer.langName(code).toLowerCase() + ' siempre que el canal lo tenga');
+        return;
+      }
+    }
+    toast(t.index < 0 ? 'Subtítulos desactivados' : t.label);
+  }
+
+  function showSubtitle(text, duration) {
+    var el = $('subs');
+    clearTimeout(subsTimer);
+    if (!text) {
+      el.classList.add('hidden');
+      return;
+    }
+    el.innerHTML = esc(text).replace(/\n/g, '<br>');
+    el.classList.remove('hidden');
+    subsTimer = setTimeout(function () { el.classList.add('hidden'); }, Math.max(1500, duration || 4000));
+  }
+
   function playerKey(a) {
+    if (sideOpen && trackType) {
+      if (a === 'up') return trackList.move(-1);
+      if (a === 'down') return trackList.move(1);
+      if (a === 'ok') return chooseTrack();
+      if (a === 'back' || a === 'left' || a === 'right' || a === 'yellow' || a === 'blue') return closeSide();
+      return;
+    }
     if (sideOpen) {
       if (a === 'up') return sideList.move(-1);
       if (a === 'down') return sideList.move(1);
@@ -489,10 +558,8 @@
       loadShortEpg(c);
       return showOsd();
     }
-    if (a === 'yellow') {
-      var label = player.nextAudioTrack();
-      return toast(label || 'Este canal solo tiene un idioma de audio');
-    }
+    if (a === 'yellow') return openTracks('AUDIO');
+    if (a === 'blue') return openTracks('TEXT');
     if (a === 'back' || a === 'stop') {
       var cur = playList[playIndex];
       player.stop();
@@ -926,11 +993,14 @@
     catList = new VList($('cats'), catRow);
     chanList = new VList($('chans'), channelRow);
     sideList = new VList($('side-list'), channelRow);
+    trackList = new VList($('side-list'), trackRow);
     player = new root.MiPlayer({
       objectEl: $('av-player'),
       videoEl: $('html-player'),
       onState: onPlayerState,
-      onError: onPlayerError
+      onError: onPlayerError,
+      onSubtitle: showSubtitle,
+      preferredAudio: function () { return store.settings.audioLanguage || ''; }
     });
     document.addEventListener('keydown', onKey);
     document.addEventListener('visibilitychange', function () {

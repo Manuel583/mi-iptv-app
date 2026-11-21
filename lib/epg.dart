@@ -226,3 +226,44 @@ String? _attr(XmlStartElementEvent e, String name) {
   }
   return (null, cur);
 }
+
+/// Número de emisión de un enlace Xtream (…/live/usuario/clave/123.ts).
+String? xtreamStreamId(String url) =>
+    RegExp(r'/live/[^/]+/[^/]+/(\d+)(\.\w+)?$').firstMatch(url)?.group(1);
+
+/// Lee la respuesta de get_simple_data_table o get_short_epg de Xtream.
+/// Los títulos y descripciones llegan en base64.
+List<Programme> parseXtreamEpg(String text) {
+  final j = jsonDecode(text);
+  final list = j is Map ? j['epg_listings'] : null;
+  if (list is! List) return const [];
+  String b64(Object? v) {
+    final s = '${v ?? ''}';
+    if (s.isEmpty) return '';
+    try {
+      return utf8
+          .decode(base64.decode(base64.normalize(s)), allowMalformed: true)
+          .trim();
+    } catch (_) {
+      return s;
+    }
+  }
+
+  DateTime? ts(Object? v) {
+    final n = int.tryParse('${v ?? ''}');
+    return n == null ? null : DateTime.fromMillisecondsSinceEpoch(n * 1000);
+  }
+
+  final out = <Programme>[];
+  final seen = <int>{};
+  for (final e in list) {
+    if (e is! Map) continue;
+    final start = ts(e['start_timestamp']);
+    final stop = ts(e['stop_timestamp']) ?? ts(e['end_timestamp']);
+    if (start == null || stop == null || !stop.isAfter(start)) continue;
+    if (!seen.add(start.millisecondsSinceEpoch)) continue;
+    out.add(Programme(start, stop, b64(e['title']), b64(e['description'])));
+  }
+  out.sort((a, b) => a.start.compareTo(b.start));
+  return out;
+}

@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../app_state.dart';
 import '../models.dart';
+import '../scheduler.dart';
 import 'common.dart';
+import 'guide_page.dart';
 
 const _days = [
   'lunes',
@@ -21,10 +23,22 @@ class EpgPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Programación | ${app.channelName(channel)}')),
+      appBar: AppBar(
+        title: Text('Programación | ${app.channelName(channel)}'),
+        actions: [
+          IconButton(
+            tooltip: 'Guía de todos los canales',
+            icon: const Icon(Icons.view_timeline_outlined),
+            onPressed: () => Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (_) => const GuidePage()),
+            ),
+          ),
+        ],
+      ),
       body: ListenableBuilder(
-        listenable: app,
+        listenable: Listenable.merge([app, RecordingScheduler.instance]),
         builder: (context, _) {
+          app.requestProgrammes(channel);
           final list = app.programmesFor(channel);
           if (list == null || list.isEmpty) {
             return Center(
@@ -75,25 +89,15 @@ class EpgPage extends StatelessWidget {
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                 )),
-                    onTap: p.desc.isEmpty
+                    trailing:
+                        RecordingScheduler.instance.find(channel, p) == null
                         ? null
-                        : () => showDialog(
-                            context: context,
-                            builder: (ctx) => AlertDialog(
-                              title: Text(p.title),
-                              content: SingleChildScrollView(
-                                child: Text(
-                                  '${hhmm(p.start)} - ${hhmm(p.stop)}\n\n${p.desc}',
-                                ),
-                              ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(ctx),
-                                  child: const Text('Cerrar'),
-                                ),
-                              ],
-                            ),
+                        : const Icon(
+                            Icons.fiber_manual_record,
+                            color: Colors.red,
+                            size: 16,
                           ),
+                    onTap: () => showProgrammeSheet(context, channel, p),
                   ),
                 ],
               );

@@ -69,6 +69,48 @@ Future<void> configureLivePlayer(
     'reconnect=1,reconnect_streamed=1,reconnect_on_network_error=1,reconnect_delay_max=5',
   );
   await set('user-agent', app.effectiveUserAgent);
+  // Idiomas preferidos: mpv elige solo la pista que coincida.
+  await set('alang', mpvLanguages(app.settings.audioLanguage));
+  await set('slang', mpvLanguages(app.settings.subtitleLanguage));
+}
+
+/// Idiomas que se pueden elegir como preferidos (código -> nombre).
+const preferredLanguages = <String, String>{
+  'es': 'Español',
+  'en': 'Inglés',
+  'ca': 'Catalán',
+  'eu': 'Euskera',
+  'gl': 'Gallego',
+  'fr': 'Francés',
+  'pt': 'Portugués',
+  'it': 'Italiano',
+  'de': 'Alemán',
+};
+
+/// Todas las formas en que las emisiones suelen marcar un idioma.
+String mpvLanguages(String code) => switch (code) {
+  '' => '',
+  'es' => 'es,spa,esp,cas,spanish,español',
+  'en' => 'en,eng,english',
+  'ca' => 'ca,cat,catalan',
+  'eu' => 'eu,eus,baq,basque',
+  'gl' => 'gl,glg,galician',
+  'fr' => 'fr,fre,fra,french',
+  'pt' => 'pt,por,portuguese',
+  'it' => 'it,ita,italian',
+  'de' => 'de,ger,deu,german',
+  _ => code,
+};
+
+/// Convierte la marca de idioma de una pista (spa, es, cas…) en un código
+/// de [preferredLanguages], o '' si no se reconoce.
+String preferredCodeFor(String? lang) {
+  final l = (lang ?? '').toLowerCase().trim();
+  if (l.isEmpty) return '';
+  for (final code in preferredLanguages.keys) {
+    if (mpvLanguages(code).split(',').contains(l)) return code;
+  }
+  return '';
 }
 
 /// Abre un canal en un reproductor, con su User-Agent y Referer si los tiene.
@@ -1325,11 +1367,32 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
                 onTap: () {
                   _player.setAudioTrack(list[i]);
                   Navigator.pop(ctx);
+                  _rememberLanguage(list[i].language, audio: true);
                 },
               ),
           ],
         ),
       ),
+    );
+  }
+
+  /// Recuerda el idioma elegido para los próximos canales.
+  void _rememberLanguage(String? lang, {required bool audio}) {
+    final code = preferredCodeFor(lang);
+    if (code.isEmpty) return;
+    final s = app.settings;
+    if ((audio ? s.audioLanguage : s.subtitleLanguage) == code) return;
+    app.updateSettings((s) {
+      if (audio) {
+        s.audioLanguage = code;
+      } else {
+        s.subtitleLanguage = code;
+      }
+    });
+    showMessage(
+      context,
+      '${audio ? 'Audio' : 'Subtítulos'} en ${preferredLanguages[code]!.toLowerCase()} '
+      'siempre que el canal lo tenga. Puedes cambiarlo en Ajustes.',
     );
   }
 
@@ -1354,6 +1417,9 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
               onTap: () {
                 _player.setSubtitleTrack(SubtitleTrack.no());
                 Navigator.pop(ctx);
+                if (app.settings.subtitleLanguage.isNotEmpty) {
+                  app.updateSettings((s) => s.subtitleLanguage = '');
+                }
               },
             ),
             if (list.isEmpty)
@@ -1369,6 +1435,7 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
                 onTap: () {
                   _player.setSubtitleTrack(list[i]);
                   Navigator.pop(ctx);
+                  _rememberLanguage(list[i].language, audio: false);
                 },
               ),
           ],

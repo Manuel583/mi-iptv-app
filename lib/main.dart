@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -8,13 +9,35 @@ import 'package:window_manager/window_manager.dart';
 
 import 'app_state.dart';
 import 'native.dart';
+import 'scheduler.dart';
 import 'ui/home_page.dart';
+import 'ui/recorder_window.dart';
 
 bool get isWindows => !kIsWeb && Platform.isWindows;
 bool get isAndroid => !kIsWeb && Platform.isAndroid;
 
-Future<void> main() async {
+Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Windows: el Programador de tareas abre la app así para grabar.
+  final rec = args.indexOf('--grabar');
+  if (isWindows && rec >= 0 && rec + 1 < args.length) {
+    await windowManager.ensureInitialized();
+    await windowManager.waitUntilReadyToShow(
+      const WindowOptions(
+        title: 'Mi IPTV | Grabando',
+        size: Size(440, 220),
+        minimumSize: Size(360, 200),
+        alwaysOnTop: false,
+        skipTaskbar: false,
+      ),
+      () async {
+        await windowManager.show(inactive: true);
+        await windowManager.minimize();
+      },
+    );
+    runApp(RecorderApp(id: args[rec + 1]));
+    return;
+  }
   MediaKit.ensureInitialized();
   NativeBridge.init();
   if (isWindows) {
@@ -33,6 +56,7 @@ Future<void> main() async {
     );
   }
   await app.load();
+  unawaited(RecordingScheduler.instance.load());
   runApp(const MiIptvApp());
 }
 
