@@ -135,3 +135,60 @@ test('Rechaza archivos que no son de Mi IPTV', function () {
   assert.throws(function () { s.importConfig('{"hola":1}'); }, /no es una configuración/);
   assert.throws(function () { s.importConfig('no es json'); }, /no es una configuración/);
 });
+
+test('Separa canales, películas y series y crea las carpetas de fútbol y TDT', function () {
+  var m3u = '#EXTM3U\n' +
+    '#EXTINF:-1 group-title="ES | Generalistas",La 1 HD\nhttp://srv.com/live/u/p/1.ts\n' +
+    '#EXTINF:-1 group-title="ES | Deportes",M+ LaLiga FHD\nhttp://srv.com/u/p/2\n' +
+    '#EXTINF:-1 group-title="ES | Deportes",DAZN F1\nhttp://srv.com/u/p/3\n' +
+    '#EXTINF:-1 group-title="VOD | Acción",Gladiator (2000)\nhttp://srv.com/movie/u/p/4.mkv\n' +
+    '#EXTINF:-1 group-title="Series | Drama",Breaking Bad S01E02\nhttp://srv.com/series/u/p/5.mkv\n' +
+    '#EXTINF:-1 group-title="Series | Drama",Breaking Bad S01E01\nhttp://srv.com/series/u/p/6.mkv\n' +
+    '#EXTINF:-1 group-title="Series | Drama",Breaking Bad S02E01\nhttp://srv.com/series/u/p/7.mkv\n';
+  var ch = P.parseM3u(m3u, 's').channels;
+  assert.deepStrictEqual(ch.map(function (c) { return c.v || 'l'; }), ['l', 'l', 'l', 'm', 's', 's', 's']);
+  assert.strictEqual(ch[4].sn, 'Breaking Bad');
+  assert.strictEqual(ch[4].se, 1);
+  assert.strictEqual(ch[4].ep, 2);
+
+  var s = fakeStore({ 'http://lista/v.m3u': m3u });
+  var src = s.addSource({ name: 'L', type: 'm3uUrl', url: 'http://lista/v.m3u' });
+  src.id = 's';
+  s.channelsBySource.s = ch;
+  s.rebuild();
+  assert.strictEqual(s.totalChannels(), 3);
+  assert.strictEqual(s.movieCount, 1);
+  assert.strictEqual(s.seriesCount, 1);
+  assert.strictEqual(s.movieGroups()[0].name, 'VOD | Acción');
+  var info = s.seriesInGroup('Series | Drama')[0];
+  var seasons = s.seasonsOf(info);
+  assert.strictEqual(seasons.length, 2);
+  assert.strictEqual(seasons[0].episodes[0].ep, 1);
+  var smart = s.smartFolders();
+  assert.deepStrictEqual(smart[0].channels.map(function (c) { return c.n; }), ['M+ LaLiga FHD']);
+  assert.deepStrictEqual(smart[1].channels.map(function (c) { return c.n; }), ['La 1 HD']);
+});
+
+test('Lee películas y series de Xtream', function () {
+  var vod = P.parseXtreamVod({
+    categories: '[{"category_id":"7","category_name":"Estrenos"}]',
+    streams: '[{"stream_id":9,"name":"Dune","category_id":"7","container_extension":"mkv"}]',
+    sourceId: 'x', server: 'http://srv:80', username: 'yo', password: 'clave'
+  });
+  assert.strictEqual(vod[0].u, 'http://srv:80/movie/yo/clave/9.mkv');
+  var series = P.parseXtreamSeries({
+    categories: '[{"category_id":"3","category_name":"Drama"}]',
+    series: '[{"series_id":12,"name":"The Wire","category_id":"3"}]',
+    sourceId: 'x'
+  });
+  assert.strictEqual(series[0].xs, '12');
+  var eps = P.parseXtreamSeriesInfo('{"episodes":{"2":[{"id":"101","episode_num":1,"season":2}],"1":[{"id":"100","episode_num":"1","container_extension":"mkv"}]}}',
+    series[0], 'http://srv:80', 'yo', 'clave');
+  assert.strictEqual(eps.length, 2);
+  assert.strictEqual(eps[0].se, 1);
+  assert.strictEqual(eps[0].u, 'http://srv:80/series/yo/clave/100.mkv');
+  assert.strictEqual(P.isTdtChannel('|ES| Antena 3 FHD'), true);
+  assert.strictEqual(P.isTdtChannel('Antena 3 Internacional'), false);
+  assert.strictEqual(P.isFootballChannel('Movistar Liga de Campeones 1'), true);
+  assert.strictEqual(P.isFootballChannel('Movistar Golf'), false);
+});

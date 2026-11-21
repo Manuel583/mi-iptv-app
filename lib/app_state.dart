@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 import 'package:path_provider/path_provider.dart';
 
+import 'content_kind.dart';
 import 'country.dart';
 import 'epg.dart';
 import 'models.dart';
@@ -21,6 +22,47 @@ class GroupInfo {
   final String name;
   final bool hidden;
   final int count;
+}
+
+/// Una serie con sus capítulos (de una lista M3U) o pendiente de pedirlos
+/// al servidor (Xtream).
+class SeriesInfo {
+  SeriesInfo({
+    required this.key,
+    required this.name,
+    required this.group,
+    required this.sourceId,
+    this.logo = '',
+    this.xtream,
+  });
+  final String key;
+  final String name;
+  final String group;
+  final String sourceId;
+  String logo;
+
+  /// Entrada de la serie en un servidor Xtream (sin capítulos todavía).
+  final Channel? xtream;
+  final List<Channel> episodes = [];
+
+  /// Temporadas en orden, con sus capítulos.
+  List<(int, List<Channel>)> seasons() {
+    final map = <int, List<Channel>>{};
+    for (final e in episodes) {
+      (map[e.season] ??= []).add(e);
+    }
+    final keys = map.keys.toList()..sort();
+    return [for (final k in keys) (k, map[k]!)];
+  }
+}
+
+/// Carpeta que se rellena sola (fútbol, TDT).
+class SmartFolder {
+  const SmartFolder(this.id, this.name, this.description, this.channels);
+  final String id;
+  final String name;
+  final String description;
+  final List<Channel> channels;
 }
 
 class AppController extends ChangeNotifier {
@@ -45,6 +87,17 @@ class AppController extends ChangeNotifier {
   Map<String, List<Channel>> _groupChannels = {};
   Map<String, List<Channel>> _countryChannels = {};
   List<String> _countryKeys = [];
+
+  // Películas y series.
+  List<Channel> allMovies = [];
+  List<String> _movieGroupKeys = [];
+  Map<String, List<Channel>> _movieGroups = {};
+  List<String> _seriesGroupKeys = [];
+  Map<String, List<SeriesInfo>> _seriesGroups = {};
+  Map<String, SeriesInfo> _seriesByKey = {};
+  int seriesCount = 0;
+  List<Channel> _footballChannels = [];
+  List<Channel> _tdtChannels = [];
 
   EpgData epg = EpgData.empty();
   final Map<String, List<Programme>?> _epgCache = {};
@@ -183,12 +236,43 @@ class AppController extends ChangeNotifier {
 
   void _rebuildIndex() {
     final all = <Channel>[];
+    final movies = <Channel>[];
+    final episodes = <Channel>[];
     for (final s in sources) {
       if (!s.enabled) continue;
-      all.addAll(_channelsBySource[s.id] ?? const []);
+      for (final c in _channelsBySource[s.id] ?? const <Channel>[]) {
+        switch (c.kind) {
+          case ContentKind.live:
+            all.add(c);
+          case ContentKind.movie:
+            movies.add(c);
+          case ContentKind.series:
+            episodes.add(c);
+        }
+      }
     }
     allChannels = all;
-    byKey = {for (final c in all) c.key: c};
+    allMovies = movies;
+    byKey = {
+      for (final c in all) c.key: c,
+      for (final c in movies) c.key: c,
+      for (final c in episodes)
+        if (c.seriesId.isEmpty) c.key: c,
+    };
+    for (final list in _xtreamEpisodes.values) {
+      for (final c in list) {
+        byKey[c.key] = c;
+      }
+    }
+    _indexVod(movies, episodes);
+    _footballChannels = [
+      for (final c in all)
+        if (isFootballChannel(name: c.name, group: c.group)) c,
+    ];
+    _tdtChannels = [
+      for (final c in all)
+        if (isTdtChannel(name: c.name, country: c.country, tvgId: c.tvgId)) c,
+    ];
 
     final natural = <String>[];
     final groups = <String, List<Channel>>{};
@@ -256,6 +340,166 @@ class AppController extends ChangeNotifier {
     revision++;
   }
 
+  void _indexVod(List<Channel> movies, List<Channel> episodes) {
+    final mKeys = <String>[];
+    final mGroups = <String, List<Channel>>{};
+    for (final c in movies) {
+      final g = mGroups[c.group];
+      if (g == null) {
+        mKeys.add(c.group);
+        mGroups[c.group] = [c];
+      } else {
+        g.add(c);
+      }
+    }
+    _movieGroupKeys = mKeys;
+    _movieGroups = mGroups;
+
+    final sKeys = <String>[];
+    final sGroups = <String, List<SeriesInfo>>{};
+    final byKey = <String, SeriesInfo>{};
+    for (final c in episodes) {
+      final name = c.seriesName.isEmpty ? c.name : c.seriesName;
+      final key = c.seriesId.isNotEmpty
+          ? c.key
+          : '${c.sourceId}|serie|${c.group}|${normalizeText(name)}';
+      var info = byKey[key];
+      if (info == null) {
+        info = SeriesInfo(
+          key: key,
+          name: name,
+          group: c.group,
+          sourceId: c.sourceId,
+          logo: c.logo,
+          xtream: c.seriesId.isNotEmpty ? c : null,
+        );
+        byKey[key] = info;
+        final list = sGroups[c.group];
+        if (list == null) {
+          sKeys.add(c.group);
+          sGroups[c.group] = [info];
+        } else {
+          list.add(info);
+        }
+      }
+      if (c.seriesId.isEmpty) {
+        info.episodes.add(c);
+      } else {
+        info.episodes.addAll(_xtreamEpisodes[c.key] ?? const []);
+      }
+    }
+    for (final info in byKey.values) {
+      if (info.xtream == null) {
+        info.episodes.sort((a, b) {
+          final x = a.season.compareTo(b.season);
+          return x != 0 ? x : a.episode.compareTo(b.episode);
+        });
+      }
+    }
+    _seriesGroupKeys = sKeys;
+    _seriesGroups = sGroups;
+    _seriesByKey = byKey;
+    seriesCount = byKey.length;
+  }
+
+  // ---------------------------------------------------------------- Películas y series
+
+  bool get hasMovies => allMovies.isNotEmpty;
+  bool get hasSeries => seriesCount > 0;
+
+  List<GroupInfo> movieGroups() {
+    final out = <GroupInfo>[];
+    for (final g in _movieGroupKeys) {
+      final hidden = custom.hiddenGroups.contains(g);
+      if (hidden && !settings.showHidden) continue;
+      final n = moviesInGroup(g).length;
+      if (n > 0) out.add(GroupInfo(g, groupName(g), hidden, n));
+    }
+    return out;
+  }
+
+  List<Channel> moviesInGroup(String g) {
+    final list = _movieGroups[g] ?? const [];
+    if (settings.showHidden) return list;
+    return list.where((c) => !custom.hiddenChannels.contains(c.key)).toList();
+  }
+
+  List<GroupInfo> seriesGroups() {
+    final out = <GroupInfo>[];
+    for (final g in _seriesGroupKeys) {
+      final hidden = custom.hiddenGroups.contains(g);
+      if (hidden && !settings.showHidden) continue;
+      final n = seriesInGroup(g).length;
+      if (n > 0) out.add(GroupInfo(g, groupName(g), hidden, n));
+    }
+    return out;
+  }
+
+  List<SeriesInfo> seriesInGroup(String g) {
+    final list = _seriesGroups[g] ?? const [];
+    if (settings.showHidden) return list;
+    return list.where((s) => !custom.hiddenChannels.contains(s.key)).toList();
+  }
+
+  SeriesInfo? seriesByKey(String key) => _seriesByKey[key];
+
+  // Capítulos pedidos al servidor Xtream (clave de la serie -> capítulos).
+  final Map<String, List<Channel>> _xtreamEpisodes = {};
+
+  /// Pide al servidor Xtream los capítulos de una serie (si hace falta).
+  /// Devuelve un mensaje de error o null.
+  Future<String?> loadSeriesEpisodes(SeriesInfo info) async {
+    final x = info.xtream;
+    if (x == null || _xtreamEpisodes.containsKey(x.key)) return null;
+    final s = sources.where((s) => s.id == x.sourceId).firstOrNull;
+    if (s == null) return 'No se encuentra la lista de esta serie.';
+    try {
+      final text = await _getText(
+        '${s.server}/player_api.php?username=${Uri.encodeQueryComponent(s.username)}&password=${Uri.encodeQueryComponent(s.password)}&action=get_series_info&series_id=${Uri.encodeQueryComponent(x.seriesId)}',
+      );
+      final eps = parseXtreamSeriesInfo(
+        json: text,
+        series: x,
+        server: s.server,
+        username: s.username,
+        password: s.password,
+      );
+      _xtreamEpisodes[x.key] = eps;
+      info.episodes
+        ..clear()
+        ..addAll(eps);
+      for (final c in eps) {
+        byKey[c.key] = c;
+      }
+      revision++;
+      notifyListeners();
+      return eps.isEmpty
+          ? 'El servidor no tiene capítulos de esta serie.'
+          : null;
+    } catch (e) {
+      return _friendlyError(e);
+    }
+  }
+
+  // ---------------------------------------------------------------- Carpetas automáticas
+
+  List<SmartFolder> smartFolders() => [
+    SmartFolder(
+      'auto:futbol',
+      'Fútbol',
+      'DAZN, LaLiga, Liga de Campeones, Gol, Real Madrid TV...',
+      _footballChannels
+          .where((c) => settings.showHidden || !isHidden(c))
+          .toList(),
+    ),
+    SmartFolder(
+      'auto:tdt',
+      'TDT',
+      'La 1, Antena 3, Cuatro, Telecinco, laSexta, autonómicas...',
+      _tdtChannels.where((c) => settings.showHidden || !isHidden(c)).toList(),
+    ),
+  ];
+
   // ---------------------------------------------------------------- Consultas
 
   String channelName(Channel c) => custom.channelNames[c.key] ?? c.name;
@@ -321,7 +565,12 @@ class AppController extends ChangeNotifier {
     if (q.isEmpty) return const [];
     final words = q.split(RegExp(r'\s+'));
     final out = <Channel>[];
-    for (final c in allChannels) {
+    final everything = [
+      ...allChannels,
+      ...allMovies,
+      for (final info in _seriesByKey.values) ...info.episodes,
+    ];
+    for (final c in everything) {
       if (!settings.showHidden && isHidden(c)) continue;
       final hay = normalizeText('${channelName(c)} ${groupName(c.group)}');
       if (words.every(hay.contains)) {
@@ -334,6 +583,7 @@ class AppController extends ChangeNotifier {
 
   /// Programación del canal (o null si no hay guía).
   List<Programme>? programmesFor(Channel c) {
+    if (!c.isLive) return null;
     if (_epgCache.containsKey(c.key)) return _epgCache[c.key];
     final p = epg.lookup(c) ?? _xtreamEpg[c.key];
     _epgCache[c.key] = p;
@@ -349,6 +599,7 @@ class AppController extends ChangeNotifier {
 
   /// Si el canal no tiene guía y es de una lista Xtream, la pide al servidor.
   void requestProgrammes(Channel c) {
+    if (!c.isLive) return;
     if (epgLoading || !_xtreamAsked.add(c.key)) return;
     final p = programmesFor(c);
     if (p != null && p.isNotEmpty) return;
@@ -621,6 +872,38 @@ class AppController extends ChangeNotifier {
             pass,
             out,
           ]);
+          // Películas y series: si el servidor no las tiene, se sigue igual.
+          try {
+            refreshStatus = 'Actualizando películas de "${s.name}"…';
+            notifyListeners();
+            final vc = await _getText('$base&action=get_vod_categories');
+            final vs = await _getText('$base&action=get_vod_streams');
+            channels = [
+              ...channels,
+              ...await compute(_parseXtreamVodJob, [
+                vc,
+                vs,
+                id,
+                server,
+                user,
+                pass,
+              ]),
+            ];
+          } catch (e) {
+            debugPrint('Películas de ${s.name}: $e');
+          }
+          try {
+            refreshStatus = 'Actualizando series de "${s.name}"…';
+            notifyListeners();
+            final sc = await _getText('$base&action=get_series_categories');
+            final ss = await _getText('$base&action=get_series');
+            channels = [
+              ...channels,
+              ...await compute(_parseXtreamSeriesJob, [sc, ss, id]),
+            ];
+          } catch (e) {
+            debugPrint('Series de ${s.name}: $e');
+          }
           break;
       }
       if (channels.isEmpty) {
@@ -967,6 +1250,18 @@ List<Channel> _parseXtreamJob(List<String> a) => parseXtream(
   password: a[5],
   output: a[6],
 );
+
+List<Channel> _parseXtreamVodJob(List<String> a) => parseXtreamVod(
+  categoriesJson: a[0],
+  streamsJson: a[1],
+  sourceId: a[2],
+  server: a[3],
+  username: a[4],
+  password: a[5],
+);
+
+List<Channel> _parseXtreamSeriesJob(List<String> a) =>
+    parseXtreamSeries(categoriesJson: a[0], seriesJson: a[1], sourceId: a[2]);
 
 Future<EpgData> _parseEpgJob((String, DateTime, DateTime) a) =>
     parseXmltvFile(a.$1, a.$2, a.$3);

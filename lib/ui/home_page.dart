@@ -17,37 +17,62 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
+enum _Section {
+  channels,
+  movies,
+  series,
+  countries,
+  favorites,
+  folders,
+  settings,
+}
+
 class _HomePageState extends State<HomePage> {
-  int _index = 0;
+  _Section _current = _Section.channels;
 
-  static const _titles = [
-    'Canales',
-    'Países',
-    'Favoritos',
-    'Carpetas',
-    'Ajustes',
-  ];
+  static const _info = {
+    _Section.channels: (Icons.live_tv_outlined, Icons.live_tv, 'Canales'),
+    _Section.movies: (Icons.movie_outlined, Icons.movie, 'Películas'),
+    _Section.series: (
+      Icons.subscriptions_outlined,
+      Icons.subscriptions,
+      'Series',
+    ),
+    _Section.countries: (Icons.public_outlined, Icons.public, 'Países'),
+    _Section.favorites: (Icons.star_border, Icons.star, 'Favoritos'),
+    _Section.folders: (Icons.folder_outlined, Icons.folder, 'Carpetas'),
+    _Section.settings: (Icons.settings_outlined, Icons.settings, 'Ajustes'),
+  };
 
-  static const _destinations = [
-    (Icons.live_tv_outlined, Icons.live_tv, 'Canales'),
-    (Icons.public_outlined, Icons.public, 'Países'),
-    (Icons.star_border, Icons.star, 'Favoritos'),
-    (Icons.folder_outlined, Icons.folder, 'Carpetas'),
-    (Icons.settings_outlined, Icons.settings, 'Ajustes'),
+  /// Películas y Series sólo aparecen si alguna lista las tiene.
+  List<_Section> _sections() => [
+    _Section.channels,
+    if (app.hasMovies) _Section.movies,
+    if (app.hasSeries) _Section.series,
+    _Section.countries,
+    _Section.favorites,
+    _Section.folders,
+    _Section.settings,
   ];
 
   Widget _body() {
-    if (app.sources.isEmpty && _index < 4) return const _Welcome();
-    switch (_index) {
-      case 0:
+    if (app.sources.isEmpty && _current != _Section.settings) {
+      return const _Welcome();
+    }
+    switch (_current) {
+      case _Section.channels:
         return const BrowsePage(mode: BrowseMode.groups);
-      case 1:
+      case _Section.movies:
+        return const BrowsePage(mode: BrowseMode.movies);
+      case _Section.series:
+        return const BrowsePage(mode: BrowseMode.series);
+      case _Section.countries:
         return const BrowsePage(mode: BrowseMode.countries);
-      case 2:
+      case _Section.favorites:
         return const FavoritesPage();
-      case 3:
+      case _Section.folders:
         return const FoldersPage();
-      default:
+      case _Section.settings:
         return const SettingsPage();
     }
   }
@@ -58,8 +83,12 @@ class _HomePageState extends State<HomePage> {
     return ListenableBuilder(
       listenable: app,
       builder: (context, _) {
+        final sections = _sections();
+        if (!sections.contains(_current)) _current = _Section.channels;
+        final index = sections.indexOf(_current);
+        void select(int i) => setState(() => _current = sections[i]);
         final appBar = AppBar(
-          title: Text(_titles[_index]),
+          title: Text(_info[_current]!.$3),
           actions: [
             if (app.refreshing || app.epgLoading)
               const Padding(
@@ -134,11 +163,11 @@ class _HomePageState extends State<HomePage> {
             body: Row(
               children: [
                 NavigationRail(
-                  selectedIndex: _index,
+                  selectedIndex: index,
                   labelType: NavigationRailLabelType.all,
-                  onDestinationSelected: (i) => setState(() => _index = i),
+                  onDestinationSelected: select,
                   destinations: [
-                    for (final d in _destinations)
+                    for (final d in sections.map((x) => _info[x]!))
                       NavigationRailDestination(
                         icon: Icon(d.$1),
                         selectedIcon: Icon(d.$2),
@@ -156,10 +185,14 @@ class _HomePageState extends State<HomePage> {
           appBar: appBar,
           body: _body(),
           bottomNavigationBar: NavigationBar(
-            selectedIndex: _index,
-            onDestinationSelected: (i) => setState(() => _index = i),
+            selectedIndex: index,
+            onDestinationSelected: select,
+            // Con muchas secciones sólo se ve el nombre de la elegida.
+            labelBehavior: sections.length > 5
+                ? NavigationDestinationLabelBehavior.onlyShowSelected
+                : NavigationDestinationLabelBehavior.alwaysShow,
             destinations: [
-              for (final d in _destinations)
+              for (final d in sections.map((x) => _info[x]!))
                 NavigationDestination(
                   icon: Icon(d.$1),
                   selectedIcon: Icon(d.$2),
