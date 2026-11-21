@@ -5,7 +5,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
+import '../recordings.dart';
 import 'common.dart';
+import 'recordings_page.dart';
 import 'sources_page.dart';
 
 const _palette = <int>[
@@ -174,6 +176,60 @@ class SettingsPage extends StatelessWidget {
               onChanged: (v) =>
                   app.updateSettings((s) => s.hardwareDecoding = v),
             ),
+            ListTile(
+              leading: const Icon(Icons.history),
+              title: const Text('Retroceder en directo'),
+              subtitle: Text(
+                s.timeshiftMinutes == 0
+                    ? 'Desactivado'
+                    : 'Guarda los últimos ${s.timeshiftMinutes} minutos del canal '
+                          'para pausar y volver atrás',
+              ),
+              onTap: () async {
+                final v = await showDialog<int>(
+                  context: context,
+                  builder: (ctx) => SimpleDialog(
+                    title: const Text('Retroceder en directo'),
+                    children: [
+                      for (final m in const [0, 5, 15, 30, 60])
+                        ListTile(
+                          leading: Icon(
+                            m == s.timeshiftMinutes
+                                ? Icons.radio_button_checked
+                                : Icons.radio_button_unchecked,
+                          ),
+                          title: Text(m == 0 ? 'Desactivado' : '$m minutos'),
+                          subtitle: m == 0
+                              ? null
+                              : Text(
+                                  'Ocupa hasta ${formatBytes(m * 60 * 1024 * 1024)} '
+                                  'de espacio temporal',
+                                ),
+                          onTap: () => Navigator.pop(ctx, m),
+                        ),
+                    ],
+                  ),
+                );
+                if (v != null) {
+                  app.updateSettings((s) => s.timeshiftMinutes = v);
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.video_library_outlined),
+              title: const Text('Grabaciones'),
+              subtitle: FutureBuilder(
+                future: Recordings.folder(),
+                builder: (context, snap) => Text(
+                  snap.hasData
+                      ? 'Se guardan en ${snap.data!.path}'
+                      : 'Ver y borrar lo que has grabado',
+                ),
+              ),
+              onTap: () => Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const RecordingsPage())),
+            ),
             if (_isAndroid) ...[
               SwitchListTile(
                 secondary: const Icon(Icons.picture_in_picture_alt_outlined),
@@ -236,8 +292,10 @@ class SettingsPage extends StatelessWidget {
               title: Text('Mi IPTV'),
               subtitle: Text(
                 'Reproductor personal. Atajos en Windows: ↑/↓ cambiar canal | '
-                'Espacio pausa | F pantalla completa | M silencio | '
-                'A audio | S subtítulos | P miniventana | Esc salir',
+                '←/→ atrás o adelante 10 s | D volver al directo | '
+                '+/- volumen | Espacio pausa | F pantalla completa | M silencio | '
+                'A audio | S subtítulos | R grabar | C emitir | P miniventana | '
+                'Esc salir',
               ),
             ),
           ],

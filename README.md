@@ -75,12 +75,24 @@ Limitaciones de esta primera versión de la tele: la guía de programación solo
 - **Organizar**: estrella = favorito; tres puntos de un canal = carpetas, renombrar, ocultar. Lápiz en grupos o canales = ordenar arrastrando, renombrar y ocultar.
 - **Pasar la configuración del PC al móvil**: Ajustes > Exportar configuración (en el PC) y Ajustes > Importar configuración (en el móvil). El archivo contiene tus contraseñas: no lo compartas.
 
+### Retroceder en directo, grabar y emitir (Android y Windows)
+
+- **Retroceder en directo**: la app guarda los últimos minutos del canal (15 por defecto, se cambia en Ajustes > Retroceder en directo). Con los botones de 10 s, la barra de tiempo o pausando, vas hacia atrás; el botón **Ir al directo** te devuelve. Al cambiar de canal se empieza de cero.
+- **Películas, capítulos y grabaciones**: barra para adelantar y atrasar, y la app recuerda por dónde ibas.
+- **Imagen y sonido** (botón de controles deslizantes): volumen hasta 200 %, igualar volumen, retraso del sonido, velocidad, brillo, contraste, color, zoom, formato y tamaño o retraso de subtítulos.
+- **Grabar**: botón rojo. Se guarda al pulsarlo otra vez, al cambiar de canal o al salir. Android: carpeta *Películas/Mi IPTV*. Windows: *Vídeos\Mi IPTV*. Se ven en el botón **Grabaciones** de arriba. Solo graba mientras el canal está abierto. Si la señal se corta, sigue en un archivo "(parte 2)".
+- **Emitir en la tele**: botón de emitir. Busca teles DLNA (Samsung, LG, Sony...) y Chromecast en la misma wifi. La tele descarga el canal por su cuenta; si no lo abre, activa "Pasar la señal por este dispositivo" (entonces el móvil o PC tiene que seguir con la app abierta). Las Samsung no siempre aceptan canales .m3u8 por DLNA; para ellas lo mejor es la app de la tele. En Windows también puedes duplicar la pantalla con **Windows + K**.
+
 ### Atajos de teclado (Windows)
 
 | Tecla | Acción |
 |---|---|
 | ↓ / ↑ (o AvPág / RePág) | Canal siguiente / anterior |
-| ← / → | Bajar / subir volumen |
+| ← / → | Atrás / adelante 10 s (con Mayúsculas, 60 s) |
+| + / - | Subir / bajar volumen |
+| D | Volver al directo |
+| R | Grabar / parar grabación |
+| C | Emitir en la tele |
 | Espacio | Pausa |
 | F o Intro | Pantalla completa |
 | M | Silencio |

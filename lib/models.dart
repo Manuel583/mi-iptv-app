@@ -245,6 +245,7 @@ class AppSettings {
   bool pipOnLeave = true;
   bool backgroundAudio = true;
   bool hardwareDecoding = true;
+  int timeshiftMinutes = 15; // 0 = desactivado
   DateTime? lastRefresh;
   DateTime? lastEpgRefresh;
   String lastChannelKey = '';
@@ -261,6 +262,7 @@ class AppSettings {
     'pipOnLeave': pipOnLeave,
     'backgroundAudio': backgroundAudio,
     'hardwareDecoding': hardwareDecoding,
+    'timeshiftMinutes': timeshiftMinutes,
     'lastRefresh': lastRefresh?.toIso8601String(),
     'lastEpgRefresh': lastEpgRefresh?.toIso8601String(),
     'lastChannelKey': lastChannelKey,
@@ -280,6 +282,7 @@ class AppSettings {
     s.pipOnLeave = (j['pipOnLeave'] ?? true) as bool;
     s.backgroundAudio = (j['backgroundAudio'] ?? true) as bool;
     s.hardwareDecoding = (j['hardwareDecoding'] ?? true) as bool;
+    s.timeshiftMinutes = (j['timeshiftMinutes'] ?? 15) as int;
     s.lastRefresh = j['lastRefresh'] == null
         ? null
         : DateTime.tryParse(j['lastRefresh'] as String);
