@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -8,6 +9,7 @@ import 'package:window_manager/window_manager.dart';
 
 import 'app_state.dart';
 import 'native.dart';
+import 'updater.dart';
 import 'ui/home_page.dart';
 
 bool get isWindows => !kIsWeb && Platform.isWindows;
@@ -33,7 +35,12 @@ Future<void> main() async {
     );
   }
   await app.load();
+  await updater.load();
   runApp(const MiIptvApp());
+  // Busca versiones nuevas al arrancar (como mucho una vez al día).
+  unawaited(
+    Future<void>.delayed(const Duration(seconds: 5), updater.checkOnStartup),
+  );
 }
 
 class MiIptvApp extends StatelessWidget {
@@ -49,6 +56,8 @@ class MiIptvApp extends StatelessWidget {
         return MaterialApp(
           title: 'Mi IPTV',
           debugShowCheckedModeBanner: false,
+          navigatorKey: updater.navigatorKey,
+          scaffoldMessengerKey: updater.messengerKey,
           locale: const Locale('es', 'ES'),
           supportedLocales: const [Locale('es', 'ES'), Locale('es')],
           localizationsDelegates: GlobalMaterialLocalizations.delegates,
