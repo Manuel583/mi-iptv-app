@@ -4,6 +4,7 @@ import '../app_state.dart';
 import 'browse_page.dart';
 import 'common.dart';
 import 'folders_page.dart';
+import 'recordings_page.dart';
 import 'search_page.dart';
 import 'settings_page.dart';
 import 'sources_page.dart';
@@ -73,6 +74,13 @@ class _HomePageState extends State<HomePage> {
               icon: const Icon(Icons.search),
               onPressed: () => Navigator.of(context)
                   .push(MaterialPageRoute(builder: (_) => const SearchPage())),
+            ),
+            IconButton(
+              tooltip: 'Grabaciones',
+              icon: const Icon(Icons.video_library_outlined),
+              onPressed: () => Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const RecordingsPage())),
             ),
             IconButton(
               tooltip: 'Mosaico (varios canales a la vez)',

@@ -5,6 +5,7 @@ import android.app.PictureInPictureParams
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
+import android.media.MediaScannerConnection
 import android.os.Build
 import android.util.Rational
 import io.flutter.embedding.android.FlutterActivity
@@ -17,14 +18,21 @@ class MainActivity : FlutterActivity() {
     }
 
     private var channel: MethodChannel? = null
+    var captions: LiveCaptions? = null
     private var pipEnabled = false
     private var askedNotifications = false
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        AppUpdater.register(flutterEngine, this)
         instance = this
         val ch = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "mi_iptv/native")
         channel = ch
+        if (Build.VERSION.SDK_INT >= 33) {
+            captions = LiveCaptions(this) { method, args ->
+                runOnUiThread { channel?.invokeMethod(method, args) }
+            }
+        }
         ch.setMethodCallHandler { call, result ->
             when (call.method) {
                 "isPipSupported" -> result.success(pipSupported())
@@ -39,8 +47,26 @@ class MainActivity : FlutterActivity() {
                     startPlaybackService(call.argument<String>("title") ?: "Mi IPTV")
                     result.success(null)
                 }
+                "scanFile" -> {
+                    val path = call.argument<String>("path")
+                    if (path != null) {
+                        try {
+                            MediaScannerConnection.scanFile(this, arrayOf(path), null, null)
+                        } catch (_: Exception) {
+                        }
+                    }
+                    result.success(null)
+                }
                 "stopService" -> {
                     stopPlaybackService()
+                    result.success(null)
+                }
+                "captionsSupported" -> result.success(captions?.isSupported() == true)
+                "startCaptions" ->
+                    captions?.start(call.argument<String>("lang") ?: "es-ES", result)
+                        ?: result.success("unsupported")
+                "stopCaptions" -> {
+                    captions?.stop()
                     result.success(null)
                 }
                 else -> result.notImplemented()
@@ -48,7 +74,22 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        if (captions?.onActivityResult(requestCode, resultCode, data) == true) return
+        super.onActivityResult(requestCode, resultCode, data)
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        if (captions?.onPermissionResult(requestCode, grantResults) == true) return
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+    }
+
     override fun onDestroy() {
+        captions?.stop()
         stopPlaybackService()
         if (instance == this) instance = null
         super.onDestroy()
