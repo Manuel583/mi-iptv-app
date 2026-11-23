@@ -1,0 +1,48 @@
+name: Crear firma de Android
+
+# Se lanza una sola vez a mano. Crea la firma fija de la app, protegida con la
+# contraseña guardada en el secreto ANDROID_KEYSTORE_PASSWORD, y la guarda en
+# android/app/firma. Sin esa contraseña el archivo no sirve para nada.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  crear:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Crear y guardar la firma
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_PASSWORD" ]; then
+            echo "::error::Falta el secreto ANDROID_KEYSTORE_PASSWORD."
+            exit 1
+          fi
+          if [ ${#KEYSTORE_PASSWORD} -lt 16 ]; then
+            echo "::error::La contraseña es demasiado corta (mínimo 16 caracteres)."
+            exit 1
+          fi
+          if [ -f android/app/firma/mi-iptv.jks ]; then
+            echo "Ya existe una firma. No se cambia para no romper las actualizaciones."
+            exit 0
+          fi
+          mkdir -p android/app/firma
+          keytool -genkeypair -keystore android/app/firma/mi-iptv.jks -storetype PKCS12 \
+            -alias mi-iptv -keyalg RSA -keysize 4096 -validity 36500 \
+            -storepass "$KEYSTORE_PASSWORD" -keypass "$KEYSTORE_PASSWORD" \
+            -dname "CN=Mi IPTV, O=Uso personal, C=ES"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f android/app/firma/mi-iptv.jks
+          git commit -m "Crear firma fija de Android [sin publicar]"
+          git push
