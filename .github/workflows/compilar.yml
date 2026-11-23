@@ -21,6 +21,8 @@ jobs:
   android:
     name: Android (.apk)
     runs-on: ubuntu-latest
+    outputs:
+      firmado: ${{ steps.firma.outputs.firmado }}
     steps:
       - uses: actions/checkout@v5
 
@@ -45,15 +47,24 @@ jobs:
         run: flutter test
 
       - name: Preparar firma
+        id: firma
         env:
           KEYSTORE: ${{ secrets.ANDROID_KEYSTORE }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: |
-          if [ -n "$KEYSTORE" ]; then
+          # Todas las versiones deben llevar la misma firma para instalarse encima.
+          if [ -n "$KEYSTORE" ] && [ -n "$KEYSTORE_PASSWORD" ]; then
             echo "$KEYSTORE" | base64 -d > "$RUNNER_TEMP/firma.jks"
             echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/firma.jks" >> "$GITHUB_ENV"
-            echo "Firma fija configurada."
+            echo "firmado=true" >> "$GITHUB_OUTPUT"
+            echo "Firma fija (secreto ANDROID_KEYSTORE)."
+          elif [ -f android/app/firma/mi-iptv.jks ] && [ -n "$KEYSTORE_PASSWORD" ]; then
+            echo "ANDROID_KEYSTORE_PATH=$PWD/android/app/firma/mi-iptv.jks" >> "$GITHUB_ENV"
+            echo "firmado=true" >> "$GITHUB_OUTPUT"
+            echo "Firma fija (android/app/firma, protegida con el secreto ANDROID_KEYSTORE_PASSWORD)."
           else
-            echo "::warning::No hay firma fija (secreto ANDROID_KEYSTORE). Para actualizar el APK habrá que desinstalar la versión anterior."
+            echo "firmado=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Sin firma fija: se compila para probar, pero no se publicará ninguna versión."
           fi
 
       - name: Compilar APK
@@ -148,7 +159,8 @@ jobs:
     name: Publicar en Releases
     needs: [android, windows, samsung-tv]
     # "[sin publicar]" en el commit: compila y prueba, pero no crea versión nueva.
-    if: ${{ !contains(github.event.head_commit.message, '[sin publicar]') }}
+    # Tampoco se publica un APK sin la firma fija (no se podría instalar encima).
+    if: ${{ !contains(github.event.head_commit.message, '[sin publicar]') && needs.android.outputs.firmado == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
