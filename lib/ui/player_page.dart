@@ -530,6 +530,8 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
     final hz = await DisplayRate.match(fps);
     if (!mounted) return;
     setState(() => _matchedHz = hz > 0 ? hz : null);
+    // Releer ya los hercios para que la esquina muestre el cambio.
+    _stats.refreshDisplay();
   }
 
   /// En Windows la imagen se pinta a su tamaño original. Un 8K en un
@@ -1614,12 +1616,11 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
               child: _RecBadge(since: _recSince!),
             ),
           if (_status != null) Center(child: _StatusBox(text: _status!)),
-          if (app.settings.showStats && _cast == null)
+          // Solo con los controles a la vista: se oculta con ellos.
+          if (app.settings.showStats && _cast == null && _controls)
             Positioned(
               left: 12,
-              top:
-                  MediaQuery.paddingOf(context).top +
-                  (_banner || _controls ? 72 : 12),
+              top: MediaQuery.paddingOf(context).top + 72,
               child: StatsOverlay(
                 stats: _stats,
                 liveDelay: () => _delay,
