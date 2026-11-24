@@ -190,12 +190,14 @@ class _StatsOverlayState extends State<StatsOverlay> {
           }
           lines.add('');
           lines.add('SEÑAL DE ENTRADA');
-          if (s.width > 0)
+          if (s.width > 0) {
             lines.add(
               'Imagen: ${s.width}x${s.height} ${res.isEmpty ? '' : '($res)'}',
             );
-          if (s.codec.isNotEmpty)
+          }
+          if (s.codec.isNotEmpty) {
             lines.add('Vídeo: ${s.codec.toUpperCase()} a ${_num(s.fps)} fps');
+          }
           if (s.videoBitrate > 0) {
             lines.add(
               'Calidad de la señal: ${_num(s.videoBitrate / 1e6, 1)} Mbit/s',
@@ -223,10 +225,11 @@ class _StatsOverlayState extends State<StatsOverlay> {
             'Fotogramas perdidos: ${s.droppedOutput + s.droppedDecoder}'
             '${s.droppedDecoder > 0 ? ' (${s.droppedDecoder} por el decodificador)' : ''}',
           );
-          if (s.paintFps > 0)
+          if (s.paintFps > 0) {
             lines.add(
               'La app repinta: ${_num(s.paintFps, 0)} veces por segundo',
             );
+          }
           lines.add('');
           lines.add('El retraso propio de la pantalla (input lag) no');
           lines.add('se puede medir desde la app: activa el modo Juego');
