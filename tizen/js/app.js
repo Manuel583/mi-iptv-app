@@ -464,7 +464,8 @@
   }
   function updateStats() {
     var el = $('stats');
-    var on = screen === 'player' && store.settings.showStats;
+    // Solo mientras se ven los datos del canal (al pulsar un botón del mando).
+    var on = screen === 'player' && store.settings.showStats && !$('osd').classList.contains('hidden');
     el.classList.toggle('hidden', !on);
     if (!on) return;
     var s = player.signalInfo();
@@ -528,7 +529,8 @@
     $('osd').classList.remove('hidden');
     $('osd-clock').textContent = hhmm(new Date());
     clearTimeout(osdTimer);
-    osdTimer = setTimeout(function () { $('osd').classList.add('hidden'); }, 6000);
+    osdTimer = setTimeout(function () { $('osd').classList.add('hidden'); updateStats(); }, 6000);
+    updateStats();
   }
 
   function loadShortEpg(c) {

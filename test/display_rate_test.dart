@@ -7,6 +7,9 @@ void main() {
     expect(syncFor(25, 50).repeats, 2);
     expect(syncFor(25, 60).quality, SyncQuality.bad);
     expect(syncFor(50, 60).quality, SyncQuality.bad);
+    // 240 Hz con 25 fps: no encaja, pero el tirón es mínimo.
+    expect(syncFor(25, 240).quality, SyncQuality.almost);
+    expect(syncFor(25, 240).highRate, isTrue);
     expect(syncFor(60, 60).quality, SyncQuality.perfect);
     expect(syncFor(30, 90).quality, SyncQuality.perfect);
   });
@@ -28,5 +31,18 @@ void main() {
     expect(bestModeFor(30, [60, 90], 120), 60); // empate: el más bajo
     expect(bestModeFor(25, [60, 90], 60), isNull); // Pixel 7: no hay 50 Hz
     expect(bestModeFor(23.976, [60, 48, 120], 60), 48);
+  });
+
+  test('PC de 240 Hz con 25 fps: prueba 200, luego 100 y 50', () {
+    expect(
+      matchingModes(
+        25,
+        [60, 100, 120, 144, 200, 240, 50],
+        240,
+        preferHigh: true,
+      ),
+      [200, 100, 50],
+    );
+    expect(matchingModes(25, [60, 120, 144, 240], 240), isEmpty);
   });
 }

@@ -99,6 +99,13 @@ class PlaybackStats extends ChangeNotifier {
 
   SyncResult get sync => syncFor(fps, hz);
 
+  Future<void> refreshDisplay() async {
+    final info = await DisplayRate.current();
+    hz = info.hz;
+    modes = info.modes;
+    if (!_disposed) notifyListeners();
+  }
+
   @override
   void dispose() {
     _disposed = true;
@@ -178,7 +185,9 @@ class _StatsOverlayState extends State<StatsOverlay> {
         final lines = <String>[];
         if (_open) {
           lines.add('Coordinación: ${_syncText(sync, s)}');
-          if (widget.matchedHz != null && widget.matchedHz! > 0) {
+          if (DisplayRate.lastNote.isNotEmpty) {
+            lines.add(DisplayRate.lastNote);
+          } else if (widget.matchedHz != null && widget.matchedHz! > 0) {
             lines.add(
               'Pantalla puesta a ${_num(widget.matchedHz!, 1)} Hz para este vídeo',
             );
@@ -286,6 +295,9 @@ class _StatsOverlayState extends State<StatsOverlay> {
       r.repeats == 1
           ? 'sí, un fotograma por cada refresco'
           : 'sí, cada fotograma se muestra ${r.repeats.round()} veces',
+    SyncQuality.almost when r.highRate =>
+      'casi: ${_num(s.fps)} fps no cabe exacto en ${_num(s.hz, 1)} Hz, '
+          'pero con tantos hercios el tirón apenas se nota',
     SyncQuality.almost =>
       'casi${r.skipEverySeconds > 0 ? ', un pequeño salto cada ${_num(r.skipEverySeconds, 0)} s' : ''}',
     SyncQuality.bad =>

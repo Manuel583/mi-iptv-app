@@ -27,8 +27,17 @@ class DisplayInfo {
 enum SyncQuality { unknown, perfect, almost, bad }
 
 class SyncResult {
-  const SyncResult(this.quality, this.repeats, this.skipEverySeconds);
+  const SyncResult(
+    this.quality,
+    this.repeats,
+    this.skipEverySeconds, {
+    this.highRate = false,
+  });
   final SyncQuality quality;
+
+  /// No encaja, pero la pantalla va tan rápida (240 Hz con 25 fps) que el
+  /// tirón es muy pequeño.
+  final bool highRate;
 
   /// Cuántas veces se pinta cada fotograma (60 Hz con 30 fps = 2).
   final double repeats;
@@ -56,7 +65,39 @@ SyncResult syncFor(double fps, double hz) {
       drift > 0 ? 1 / drift : 0,
     );
   }
+  // Con 4,5 o más refrescos por fotograma el desajuste es de menos de una
+  // décima parte del fotograma: casi no se nota.
+  if (ratio >= 4.5) {
+    return SyncResult(SyncQuality.almost, ratio, 0, highRate: true);
+  }
   return SyncResult(SyncQuality.bad, ratio, 0);
+}
+
+/// Frecuencias de [modes] que encajan con [fps], de mejor a peor.
+/// Con [preferHigh] (PC) gana la más alta; si no (móvil), la más baja,
+/// que gasta menos batería. La actual siempre va primero si encaja.
+List<double> matchingModes(
+  double fps,
+  List<double> modes,
+  double current, {
+  bool preferHigh = false,
+}) {
+  final ok = <(double, double)>[];
+  for (final m in modes.toSet()) {
+    final ratio = m / fps;
+    final n = ratio.round();
+    if (n < 1) continue;
+    final err = (ratio - n).abs() / n;
+    if (err <= 0.012) ok.add((m, err));
+  }
+  ok.sort((a, b) {
+    final ea = (a.$2 * 2000).round(), eb = (b.$2 * 2000).round();
+    if (ea != eb) return ea.compareTo(eb);
+    final ca = (a.$1 - current).abs() < 0.5, cb = (b.$1 - current).abs() < 0.5;
+    if (ca != cb) return ca ? -1 : 1;
+    return preferHigh ? b.$1.compareTo(a.$1) : a.$1.compareTo(b.$1);
+  });
+  return [for (final e in ok) e.$1];
 }
 
 /// Mejor frecuencia de [modes] para [fps], o null si ninguna encaja.
@@ -83,6 +124,10 @@ class DisplayRate {
   static bool get _isAndroid => !kIsWeb && Platform.isAndroid;
 
   static bool get canMatch => _isWindows || _isAndroid;
+
+  /// Explicación del último intento de igualar los hercios ('' si fue bien
+  /// o no hizo falta).
+  static String lastNote = '';
 
   static Future<DisplayInfo> current() async {
     try {
@@ -134,6 +179,9 @@ const _offWidth = 172; // dmPelsWidth
 const _offHeight = 176; // dmPelsHeight
 const _offFreq = 184; // dmDisplayFrequency
 const _dmDisplayFrequency = 0x00400000;
+const _dmBitsPerPel = 0x00040000;
+const _dmPelsWidth = 0x00080000;
+const _dmPelsHeight = 0x00100000;
 const _enumCurrentSettings = -1;
 const _cdsFullscreen = 0x00000004; // cambio temporal
 const _dispChangeSuccessful = 0;
@@ -200,20 +248,45 @@ class _Win {
     }
   }
 
+  static String _list(List<double> l) =>
+      l.map((m) => m.round().toString()).join(' | ');
+
   static double match(double fps) {
+    DisplayRate.lastNote = '';
     final i = info();
-    final best = bestModeFor(fps, i.modes, i.hz);
-    if (best == null) return 0;
-    if ((best - i.hz).abs() < 0.5) return best;
+    final cands = matchingModes(fps, i.modes, i.hz, preferHigh: true);
+    if (cands.isEmpty) {
+      final want = [for (var n = 1; n * fps <= 500; n++) (n * fps).round()]
+          .where((h) => h >= 48)
+          .take(4)
+          .join(' | ');
+      DisplayRate.lastNote =
+          'No se ha cambiado: tu pantalla no ofrece $want Hz '
+          '(admite ${_list(i.modes)} Hz)';
+      return 0;
+    }
+    if ((cands.first - i.hz).abs() < 0.5) return cands.first;
     final dm = calloc<Uint8>(_devModeSize);
+    var lastErr = 0;
     try {
-      if (_read(dm, _enumCurrentSettings) == null) return 0;
-      (dm + _offFreq).cast<Uint32>().value = best.round();
-      (dm + _offFields).cast<Uint32>().value = _dmDisplayFrequency;
-      final r = _change(nullptr, dm, nullptr, _cdsFullscreen, nullptr);
-      if (r != _dispChangeSuccessful) return 0;
-      _changed = true;
-      return best;
+      for (final hz in cands) {
+        final cur = _read(dm, _enumCurrentSettings);
+        if (cur == null) return 0;
+        (dm + _offFreq).cast<Uint32>().value = hz.round();
+        // Se indican resolución, colores y frecuencia: algunos drivers no
+        // aceptan el cambio si solo se da la frecuencia.
+        (dm + _offFields).cast<Uint32>().value =
+            _dmDisplayFrequency | _dmPelsWidth | _dmPelsHeight | _dmBitsPerPel;
+        final r = _change(nullptr, dm, nullptr, _cdsFullscreen, nullptr);
+        if (r == _dispChangeSuccessful) {
+          _changed = true;
+          return hz;
+        }
+        lastErr = r;
+      }
+      DisplayRate.lastNote =
+          'Windows no dejó cambiar a ${_list(cands)} Hz (código $lastErr)';
+      return 0;
     } finally {
       calloc.free(dm);
     }
