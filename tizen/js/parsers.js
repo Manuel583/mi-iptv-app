@@ -433,17 +433,12 @@
   }
 
   /** Quita tildes y pasa a minúsculas para comparar y buscar. */
+  var ACCENTS = { 'á': 'a', 'à': 'a', 'ä': 'a', 'â': 'a', 'ã': 'a', 'å': 'a', 'é': 'e', 'è': 'e', 'ë': 'e', 'ê': 'e',
+    'í': 'i', 'ì': 'i', 'ï': 'i', 'î': 'i', 'ó': 'o', 'ò': 'o', 'ö': 'o', 'ô': 'o', 'õ': 'o',
+    'ú': 'u', 'ù': 'u', 'ü': 'u', 'û': 'u', 'ñ': 'n', 'ç': 'c' };
+  var ACCENT_RE = /[áàäâãåéèëêíìïîóòöôõúùüûñç]/g;
   function normalizeText(s) {
-    var from = 'áàäâãåéèëêíìïîóòöôõúùüûñçÁÀÄÂÃÅÉÈËÊÍÌÏÎÓÒÖÔÕÚÙÜÛÑÇ';
-    var to = 'aaaaaaeeeeiiiiooooouuuuncaaaaaaeeeeiiiiooooouuuunc';
-    var out = '';
-    s = String(s || '');
-    for (var i = 0; i < s.length; i++) {
-      var ch = s.charAt(i);
-      var j = from.indexOf(ch);
-      out += j >= 0 ? to.charAt(j) : ch;
-    }
-    return out.toLowerCase();
+    return String(s || '').toLowerCase().replace(ACCENT_RE, function (ch) { return ACCENTS[ch]; });
   }
 
   /** Decodifica el texto en base64 que devuelve la guía corta de Xtream. */

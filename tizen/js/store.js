@@ -146,6 +146,7 @@
 
   /** Prepara los grupos y el orden de los canales (como _rebuildIndex en Dart). */
   Store.prototype.rebuild = function () {
+    this._dropSearchIndex();
     var byKey = {};
     var groups = {};
     var natural = [];
@@ -251,7 +252,7 @@
     var out = [];
     for (var i = 0; i < (keys || []).length; i++) {
       var g = keys[i];
-      if (!this.settings.showHidden && this.custom.hiddenGroups.indexOf(g) >= 0) continue;
+      if (!this.settings.showHidden && this._setOf('hiddenGroups')[g] === true) continue;
       var n = count(map[g]);
       if (n > 0) out.push({ key: g, name: this.groupName(g), count: n });
     }
@@ -314,6 +315,7 @@
       if (!eps.length) throw new Error('El servidor no tiene capítulos de esta serie.');
       self.xtreamEpisodes[x.k] = eps;
       info.episodes = eps.slice();
+      self._dropSearchIndex();
       for (var i = 0; i < eps.length; i++) self.byKey[eps[i].k] = eps[i];
       return info;
     });
@@ -330,8 +332,20 @@
     ];
   };
 
+  /** Conjunto (objeto) con los elementos de una lista, guardado mientras la lista no cambie. */
+  Store.prototype._setOf = function (name) {
+    var list = this.custom[name] || [];
+    var cache = (this._sets = this._sets || {})[name];
+    var sig = list.length + '|' + list[0] + '|' + list[list.length - 1];
+    if (cache && cache.list === list && cache.sig === sig) return cache.set;
+    var set = {};
+    for (var i = 0; i < list.length; i++) set[list[i]] = true;
+    this._sets[name] = { list: list, sig: sig, set: set };
+    return set;
+  };
+
   Store.prototype._hiddenGroup = function (c) {
-    return !this.settings.showHidden && this.custom.hiddenGroups.indexOf(c.g || '') >= 0;
+    return !this.settings.showHidden && this._setOf('hiddenGroups')[c.g || ''] === true;
   };
 
   // ---------------------------------------------------------------- Consultas
@@ -349,7 +363,7 @@
   };
 
   Store.prototype._hiddenChannel = function (c) {
-    return !this.settings.showHidden && this.custom.hiddenChannels.indexOf(c.k) >= 0;
+    return !this.settings.showHidden && this._setOf('hiddenChannels')[c.k] === true;
   };
 
   /** Lista de grupos visibles: [{key, name, count}]. */
@@ -358,7 +372,7 @@
     var self = this;
     for (var i = 0; i < this.groupKeys.length; i++) {
       var g = this.groupKeys[i];
-      if (!this.settings.showHidden && this.custom.hiddenGroups.indexOf(g) >= 0) continue;
+      if (!this.settings.showHidden && this._setOf('hiddenGroups')[g] === true) continue;
       var n = this.groupChannels[g].filter(function (c) { return !self._hiddenChannel(c); }).length;
       if (n > 0) out.push({ key: g, name: this.groupName(g), count: n });
     }
@@ -372,8 +386,13 @@
 
   Store.prototype.allChannels = function () {
     var out = [];
+    var hidden = this.settings.showHidden ? {} : this._setOf('hiddenChannels');
+    var i;
     var gs = this.groups();
-    for (var i = 0; i < gs.length; i++) out = out.concat(this.channelsInGroup(gs[i].key));
+    for (i = 0; i < gs.length; i++) {
+      var list = this.groupChannels[gs[i].key] || [];
+      for (var j = 0; j < list.length; j++) if (!hidden[list[j].k]) out.push(list[j]);
+    }
     return out;
   };
 
@@ -401,22 +420,67 @@
     return out;
   };
 
+  /** Índice del buscador: textos ya preparados para no recalcularlos en cada búsqueda. */
+  Store.prototype._searchIndex = function () {
+    if (this._sIdx && this._sIdx.custom === this.custom) return this._sIdx;
+    var items = [];
+    var owner = []; // serie a la que pertenece cada capítulo ('' si no es capítulo)
+    var i;
+    var j;
+    var add = function (list, own) {
+      for (j = 0; j < list.length; j++) {
+        items.push(list[j]);
+        owner.push(own);
+      }
+    };
+    var gk = this.groupKeys || [];
+    for (i = 0; i < gk.length; i++) add(this.groupChannels[gk[i]] || [], '');
+    var mk = this.movieKeys || [];
+    for (i = 0; i < mk.length; i++) add((this.movieGroupsMap || {})[mk[i]] || [], '');
+    var sb = this.seriesByKey || {};
+    var sk = Object.keys(sb);
+    for (i = 0; i < sk.length; i++) add(sb[sk[i]].episodes || [], sk[i]);
+    var text = new Array(items.length);
+    for (i = 0; i < items.length; i++) text[i] = P.normalizeText(this.channelName(items[i]));
+    this._sIdx = { custom: this.custom, items: items, owner: owner, text: text };
+    this._sLast = null;
+    return this._sIdx;
+  };
+
+  Store.prototype._dropSearchIndex = function () {
+    this._sIdx = null;
+    this._sLast = null;
+  };
+
   Store.prototype.search = function (query, limit) {
-    var q = P.normalizeText(String(query || '').trim());
+    var q = P.normalizeText(String(query || '').trim()).replace(/\s+/g, ' ');
     if (!q) return [];
     limit = limit || 300;
+    var idx = this._searchIndex();
+    var showHidden = !!this.settings.showHidden;
+    var hiddenCh = showHidden ? {} : this._setOf('hiddenChannels');
+    var hiddenGr = showHidden ? {} : this._setOf('hiddenGroups');
+    var last = this._sLast;
+    if (last && last.q === q && last.limit === limit && last.idx === idx &&
+      last.ch === hiddenCh && last.gr === hiddenGr) return last.out.slice();
     var out = [];
-    var all = this.allChannels();
-    var mg = this.movieGroups();
-    for (var m = 0; m < mg.length; m++) all = all.concat(this.moviesInGroup(mg[m].key));
-    var self = this;
-    Object.keys(this.seriesByKey || {}).forEach(function (k) {
-      if (!self._hiddenChannel(self.seriesByKey[k])) all = all.concat(self.seriesByKey[k].episodes);
-    });
-    for (var i = 0; i < all.length && out.length < limit; i++) {
-      if (P.normalizeText(this.channelName(all[i])).indexOf(q) >= 0) out.push(all[i]);
+    var items = idx.items;
+    var text = idx.text;
+    var owner = idx.owner;
+    // Vale cualquier orden de palabras: "deportes canal" encuentra "Canal Deportes".
+    var words = q.split(' ');
+    var nw = words.length;
+    for (var i = 0; i < text.length && out.length < limit; i++) {
+      var t = text[i];
+      var w = 0;
+      while (w < nw && t.indexOf(words[w]) >= 0) w++;
+      if (w < nw) continue;
+      var c = items[i];
+      if (owner[i] ? hiddenCh[owner[i]] : (hiddenCh[c.k] || hiddenGr[c.g || ''])) continue;
+      out.push(c);
     }
-    return out;
+    this._sLast = { q: q, limit: limit, idx: idx, ch: hiddenCh, gr: hiddenGr, out: out };
+    return out.slice();
   };
 
   Store.prototype.totalChannels = function () {

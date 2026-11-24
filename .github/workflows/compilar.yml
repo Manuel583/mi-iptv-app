@@ -137,7 +137,7 @@ jobs:
           node-version: '22'
 
       - name: Pruebas
-        run: node --test tizen/test/parsers.test.js tizen/test/sync.test.js
+        run: node --test tizen/test/parsers.test.js tizen/test/sync.test.js tizen/test/rendimiento.test.js
 
       - name: Empaquetar para Samsung TV
         run: |

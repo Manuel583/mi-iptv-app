@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
@@ -14,8 +16,38 @@ class SearchPage extends StatefulWidget {
 class _SearchPageState extends State<SearchPage> {
   final _ctrl = TextEditingController();
   List<Channel> _results = const [];
+  Timer? _wait;
+
+  @override
+  void initState() {
+    super.initState();
+    // Prepara el índice mientras se abre el teclado.
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => unawaited(app.warmUpSearch()),
+    );
+  }
+
+  @override
+  void dispose() {
+    _wait?.cancel();
+    _ctrl.dispose();
+    super.dispose();
+  }
 
   void _run(String q) => setState(() => _results = app.search(q));
+
+  // Espera a que se deje de teclear un instante antes de buscar.
+  void _typed(String q) {
+    _wait?.cancel();
+    if (q.trim().isEmpty) {
+      _run(q);
+      return;
+    }
+    _wait = Timer(searchTypingDelay, () {
+      if (mounted) _run(_ctrl.text);
+    });
+    setState(() {}); // para mostrar u ocultar el botón de borrar
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -24,7 +56,11 @@ class _SearchPageState extends State<SearchPage> {
         title: TextField(
           controller: _ctrl,
           autofocus: true,
-          onChanged: _run,
+          onChanged: _typed,
+          onSubmitted: (q) {
+            _wait?.cancel();
+            _run(q);
+          },
           decoration: const InputDecoration(
             hintText: 'Buscar canal o grupo…',
             border: InputBorder.none,
@@ -36,6 +72,7 @@ class _SearchPageState extends State<SearchPage> {
               tooltip: 'Borrar',
               icon: const Icon(Icons.clear),
               onPressed: () {
+                _wait?.cancel();
                 _ctrl.clear();
                 _run('');
               },
@@ -55,6 +92,9 @@ class _SearchPageState extends State<SearchPage> {
     );
   }
 }
+
+/// Pausa al teclear antes de buscar (evita buscar letra a letra).
+const searchTypingDelay = Duration(milliseconds: 220);
 
 /// Diálogo para elegir un canal (se usa en el mosaico).
 Future<Channel?> pickChannel(BuildContext context) {
@@ -77,6 +117,23 @@ class _ChannelPicker extends StatefulWidget {
 class _ChannelPickerState extends State<_ChannelPicker> {
   final _ctrl = TextEditingController();
   late List<Channel> _list = _initial();
+  Timer? _wait;
+
+  @override
+  void dispose() {
+    _wait?.cancel();
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  void _typed(String q) {
+    _wait?.cancel();
+    _wait = Timer(q.trim().isEmpty ? Duration.zero : searchTypingDelay, () {
+      if (!mounted) return;
+      final t = _ctrl.text;
+      setState(() => _list = t.trim().isEmpty ? _initial() : app.search(t));
+    });
+  }
 
   List<Channel> _initial() {
     final favs = app.favoriteChannels();
@@ -92,9 +149,7 @@ class _ChannelPickerState extends State<_ChannelPicker> {
           child: TextField(
             controller: _ctrl,
             autofocus: true,
-            onChanged: (q) => setState(
-              () => _list = q.trim().isEmpty ? _initial() : app.search(q),
-            ),
+            onChanged: _typed,
             decoration: const InputDecoration(
               prefixIcon: Icon(Icons.search),
               hintText: 'Buscar canal (se muestran tus favoritos)',
