@@ -136,14 +136,15 @@ class AppController extends ChangeNotifier {
         debugPrint('Error leyendo configuración: $e');
       }
     }
-    for (final s in sources) {
-      await _loadChannelCache(s);
-    }
+    // Las listas guardadas se leen a la vez (cada una en segundo plano).
+    await Future.wait(sources.map(_loadChannelCache));
     _rebuildIndex();
     loaded = true;
     notifyListeners();
     unawaited(_loadEpgCache());
     _startAutoRefresh();
+    // Deja listo el buscador poco a poco, cuando la app ya está en pantalla.
+    unawaited(Future<void>.delayed(const Duration(seconds: 3), warmUpSearch));
   }
 
   void _applyConfig(Map<String, dynamic> j) {
@@ -235,6 +236,7 @@ class AppController extends ChangeNotifier {
   // ---------------------------------------------------------------- Índices
 
   void _rebuildIndex() {
+    _dropSearchIndex();
     final all = <Channel>[];
     final movies = <Channel>[];
     final episodes = <Channel>[];
@@ -408,37 +410,45 @@ class AppController extends ChangeNotifier {
   bool get hasSeries => seriesCount > 0;
 
   List<GroupInfo> movieGroups() {
-    final out = <GroupInfo>[];
-    for (final g in _movieGroupKeys) {
-      final hidden = custom.hiddenGroups.contains(g);
-      if (hidden && !settings.showHidden) continue;
-      final n = moviesInGroup(g).length;
-      if (n > 0) out.add(GroupInfo(g, groupName(g), hidden, n));
-    }
-    return out;
+    return _memo('movieGroups', () {
+      final out = <GroupInfo>[];
+      for (final g in _movieGroupKeys) {
+        final hidden = custom.hiddenGroups.contains(g);
+        if (hidden && !settings.showHidden) continue;
+        final n = moviesInGroup(g).length;
+        if (n > 0) out.add(GroupInfo(g, groupName(g), hidden, n));
+      }
+      return out;
+    });
   }
 
   List<Channel> moviesInGroup(String g) {
-    final list = _movieGroups[g] ?? const [];
-    if (settings.showHidden) return list;
-    return list.where((c) => !custom.hiddenChannels.contains(c.key)).toList();
+    return _memo('mig|$g', () {
+      final list = _movieGroups[g] ?? const [];
+      if (settings.showHidden) return list;
+      return list.where((c) => !custom.hiddenChannels.contains(c.key)).toList();
+    });
   }
 
   List<GroupInfo> seriesGroups() {
-    final out = <GroupInfo>[];
-    for (final g in _seriesGroupKeys) {
-      final hidden = custom.hiddenGroups.contains(g);
-      if (hidden && !settings.showHidden) continue;
-      final n = seriesInGroup(g).length;
-      if (n > 0) out.add(GroupInfo(g, groupName(g), hidden, n));
-    }
-    return out;
+    return _memo('seriesGroups', () {
+      final out = <GroupInfo>[];
+      for (final g in _seriesGroupKeys) {
+        final hidden = custom.hiddenGroups.contains(g);
+        if (hidden && !settings.showHidden) continue;
+        final n = seriesInGroup(g).length;
+        if (n > 0) out.add(GroupInfo(g, groupName(g), hidden, n));
+      }
+      return out;
+    });
   }
 
   List<SeriesInfo> seriesInGroup(String g) {
-    final list = _seriesGroups[g] ?? const [];
-    if (settings.showHidden) return list;
-    return list.where((s) => !custom.hiddenChannels.contains(s.key)).toList();
+    return _memo('sig|$g', () {
+      final list = _seriesGroups[g] ?? const [];
+      if (settings.showHidden) return list;
+      return list.where((s) => !custom.hiddenChannels.contains(s.key)).toList();
+    });
   }
 
   SeriesInfo? seriesByKey(String key) => _seriesByKey[key];
@@ -471,6 +481,7 @@ class AppController extends ChangeNotifier {
       for (final c in eps) {
         byKey[c.key] = c;
       }
+      _dropSearchIndex();
       revision++;
       notifyListeners();
       return eps.isEmpty
@@ -483,24 +494,40 @@ class AppController extends ChangeNotifier {
 
   // ---------------------------------------------------------------- Carpetas automáticas
 
-  List<SmartFolder> smartFolders() => [
-    SmartFolder(
-      'auto:futbol',
-      'Fútbol',
-      'DAZN, LaLiga, Liga de Campeones, Gol, Real Madrid TV...',
-      _footballChannels
-          .where((c) => settings.showHidden || !isHidden(c))
-          .toList(),
-    ),
-    SmartFolder(
-      'auto:tdt',
-      'TDT',
-      'La 1, Antena 3, Cuatro, Telecinco, laSexta, autonómicas...',
-      _tdtChannels.where((c) => settings.showHidden || !isHidden(c)).toList(),
-    ),
-  ];
+  List<SmartFolder> smartFolders() => _memo(
+    'smart',
+    () => [
+      SmartFolder(
+        'auto:futbol',
+        'Fútbol',
+        'DAZN, LaLiga, Liga de Campeones, Gol, Real Madrid TV...',
+        _footballChannels
+            .where((c) => settings.showHidden || !isHidden(c))
+            .toList(),
+      ),
+      SmartFolder(
+        'auto:tdt',
+        'TDT',
+        'La 1, Antena 3, Cuatro, Telecinco, laSexta, autonómicas...',
+        _tdtChannels.where((c) => settings.showHidden || !isHidden(c)).toList(),
+      ),
+    ],
+  );
 
   // ---------------------------------------------------------------- Consultas
+
+  // Resultados de las consultas de abajo, guardados hasta el siguiente cambio
+  // (revision). Así redibujar la pantalla no vuelve a recorrer miles de canales.
+  final Map<String, Object> _memoCache = {};
+  int _memoRevision = -1;
+
+  T _memo<T extends Object>(String key, T Function() compute) {
+    if (_memoRevision != revision) {
+      _memoCache.clear();
+      _memoRevision = revision;
+    }
+    return (_memoCache[key] ??= compute()) as T;
+  }
 
   String channelName(Channel c) => custom.channelNames[c.key] ?? c.name;
 
@@ -515,39 +542,55 @@ class AppController extends ChangeNotifier {
 
   /// Grupos en orden. Con [includeHidden] también los ocultos.
   List<GroupInfo> groups({bool includeHidden = false}) {
-    final show = includeHidden || settings.showHidden;
-    final out = <GroupInfo>[];
-    for (final g in _groupKeys) {
-      final hidden = custom.hiddenGroups.contains(g);
-      if (hidden && !show) continue;
-      final count = _groupChannels[g]!
-          .where((c) => show || !custom.hiddenChannels.contains(c.key))
-          .length;
-      out.add(GroupInfo(g, groupName(g), hidden, count));
-    }
-    return out;
+    return _memo('groups|$includeHidden', () {
+      final show = includeHidden || settings.showHidden;
+      final out = <GroupInfo>[];
+      for (final g in _groupKeys) {
+        final hidden = custom.hiddenGroups.contains(g);
+        if (hidden && !show) continue;
+        final count = _groupChannels[g]!
+            .where((c) => show || !custom.hiddenChannels.contains(c.key))
+            .length;
+        out.add(GroupInfo(g, groupName(g), hidden, count));
+      }
+      return out;
+    });
   }
 
   List<Channel> channelsInGroup(String g, {bool includeHidden = false}) {
-    final show = includeHidden || settings.showHidden;
-    final list = _groupChannels[g] ?? const [];
-    if (show) return list;
-    return list.where((c) => !custom.hiddenChannels.contains(c.key)).toList();
+    return _memo('cig|$includeHidden|$g', () {
+      final show = includeHidden || settings.showHidden;
+      final list = _groupChannels[g] ?? const [];
+      if (show) return list;
+      return list.where((c) => !custom.hiddenChannels.contains(c.key)).toList();
+    });
   }
 
+  /// Todos los canales en directo que se ven (sin los ocultos).
+  List<Channel> visibleChannels() => _memo(
+    'visible',
+    () => settings.showHidden
+        ? allChannels
+        : allChannels.where((c) => !isHidden(c)).toList(),
+  );
+
   List<GroupInfo> countries() {
-    final out = <GroupInfo>[];
-    for (final k in _countryKeys) {
-      final n = channelsInCountry(k).length;
-      if (n > 0) out.add(GroupInfo(k, k, false, n));
-    }
-    return out;
+    return _memo('countries', () {
+      final out = <GroupInfo>[];
+      for (final k in _countryKeys) {
+        final n = channelsInCountry(k).length;
+        if (n > 0) out.add(GroupInfo(k, k, false, n));
+      }
+      return out;
+    });
   }
 
   List<Channel> channelsInCountry(String country) {
-    final list = _countryChannels[country] ?? const [];
-    if (settings.showHidden) return list;
-    return list.where((c) => !isHidden(c)).toList();
+    return _memo('cic|$country', () {
+      final list = _countryChannels[country] ?? const [];
+      if (settings.showHidden) return list;
+      return list.where((c) => !isHidden(c)).toList();
+    });
   }
 
   List<Channel> favoriteChannels() => [
@@ -560,25 +603,130 @@ class AppController extends ChangeNotifier {
       if (byKey[k] != null) byKey[k]!,
   ];
 
+  // Índice del buscador: el texto de cada canal ya preparado (sin tildes y en
+  // minúsculas) para no recalcularlo con cada letra que se escribe.
+  List<Channel>? _searchItems;
+  List<String> _searchText = const [];
+  Customization? _searchCustom;
+  // Última búsqueda, para afinar sobre sus resultados al seguir escribiendo.
+  String _lastQuery = '';
+  List<int> _lastHits = const [];
+  bool _lastComplete = false;
+  int _lastRevision = -1;
+  bool _lastShowHidden = false;
+
+  void _dropSearchIndex() {
+    _searchItems = null;
+    _buildItems = null;
+    _lastQuery = '';
+  }
+
+  // Índice a medio preparar (se hace a trozos para no congelar la pantalla).
+  List<Channel>? _buildItems;
+  List<String> _buildText = [];
+  Map<String, String> _buildGroups = {};
+  Customization? _buildCustom;
+
+  /// Prepara [count] canales más del índice. Devuelve true al terminar.
+  bool _buildSearchStep([int count = 1 << 30]) {
+    if (_searchItems != null && identical(_searchCustom, custom)) return true;
+    if (_buildItems == null || !identical(_buildCustom, custom)) {
+      _buildItems = <Channel>[
+        ...allChannels,
+        ...allMovies,
+        for (final info in _seriesByKey.values) ...info.episodes,
+      ];
+      _buildText = [];
+      _buildGroups = {};
+      _buildCustom = custom;
+    }
+    final items = _buildItems!;
+    final end = (_buildText.length + count).clamp(0, items.length);
+    for (var i = _buildText.length; i < end; i++) {
+      final c = items[i];
+      final g = _buildGroups[c.group] ??= normalizeText(groupName(c.group));
+      _buildText.add('${normalizeText(channelName(c))} $g');
+    }
+    if (_buildText.length < items.length) return false;
+    _searchItems = items;
+    _searchText = _buildText;
+    _searchCustom = custom;
+    _buildItems = null;
+    _buildText = [];
+    _buildGroups = {};
+    _lastQuery = '';
+    return true;
+  }
+
+  void _ensureSearchIndex() => _buildSearchStep();
+
+  /// Prepara el índice del buscador por adelantado, poco a poco, mientras se
+  /// abre la pantalla de búsqueda.
+  Future<void> warmUpSearch() async {
+    while (!_buildSearchStep(20000)) {
+      await Future<void>.delayed(Duration.zero);
+    }
+  }
+
   List<Channel> search(String query, {int limit = 500}) {
-    final q = normalizeText(query.trim());
+    final q = normalizeText(query.trim()).replaceAll(RegExp(r'\s+'), ' ');
     if (q.isEmpty) return const [];
-    final words = q.split(RegExp(r'\s+'));
-    final out = <Channel>[];
-    final everything = [
-      ...allChannels,
-      ...allMovies,
-      for (final info in _seriesByKey.values) ...info.episodes,
-    ];
-    for (final c in everything) {
-      if (!settings.showHidden && isHidden(c)) continue;
-      final hay = normalizeText('${channelName(c)} ${groupName(c.group)}');
-      if (words.every(hay.contains)) {
-        out.add(c);
-        if (out.length >= limit) break;
+    _ensureSearchIndex();
+    final items = _searchItems!;
+    final text = _searchText;
+    final words = q.split(' ');
+    final showHidden = settings.showHidden;
+    final hiddenCh = custom.hiddenChannels;
+    final hiddenGr = custom.hiddenGroups;
+    final checkHidden =
+        !showHidden && (hiddenCh.isNotEmpty || hiddenGr.isNotEmpty);
+
+    // Si solo se ha añadido texto a la búsqueda anterior, basta con mirar
+    // entre lo que ya coincidía.
+    final refine =
+        _lastComplete &&
+        _lastQuery.isNotEmpty &&
+        q.startsWith(_lastQuery) &&
+        _lastRevision == revision &&
+        _lastShowHidden == showHidden;
+
+    final hits = <int>[];
+    var complete = true;
+    bool test(int i) {
+      final t = text[i];
+      for (final w in words) {
+        if (!t.contains(w)) return false;
+      }
+      if (checkHidden) {
+        final c = items[i];
+        if (hiddenCh.contains(c.key) || hiddenGr.contains(c.group)) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    if (refine) {
+      for (final i in _lastHits) {
+        if (test(i)) hits.add(i);
+      }
+    } else {
+      for (var i = 0; i < text.length; i++) {
+        if (test(i)) {
+          hits.add(i);
+          if (hits.length >= limit) {
+            complete = i == text.length - 1;
+            break;
+          }
+        }
       }
     }
-    return out;
+    _lastQuery = q;
+    _lastHits = hits;
+    _lastComplete = complete;
+    _lastRevision = revision;
+    _lastShowHidden = showHidden;
+    return [for (final i in hits.take(limit)) items[i]];
   }
 
   /// Programación del canal (o null si no hay guía).
@@ -609,6 +757,15 @@ class AppController extends ChangeNotifier {
     _pumpXtream();
   }
 
+  // Agrupa en un solo redibujado las guías que llegan casi a la vez.
+  Timer? _notifyTimer;
+  void _notifySoon() {
+    _notifyTimer ??= Timer(const Duration(milliseconds: 300), () {
+      _notifyTimer = null;
+      notifyListeners();
+    });
+  }
+
   void _pumpXtream() {
     while (_xtreamRunning < 3 && _xtreamQueue.isNotEmpty) {
       final c = _xtreamQueue.removeLast();
@@ -636,8 +793,7 @@ class AppController extends ChangeNotifier {
         if (list.isNotEmpty) {
           _xtreamEpg[c.key] = list;
           _epgCache.remove(c.key);
-          revision++;
-          notifyListeners();
+          _notifySoon();
           return;
         }
       } catch (e) {
@@ -672,6 +828,7 @@ class AppController extends ChangeNotifier {
     } else {
       custom.channelNames[c.key] = name.trim();
     }
+    _dropSearchIndex();
     changed();
   }
 
@@ -690,6 +847,7 @@ class AppController extends ChangeNotifier {
     } else {
       custom.groupNames[g] = name.trim();
     }
+    _dropSearchIndex();
     changed();
   }
 
@@ -1053,7 +1211,9 @@ class AppController extends ChangeNotifier {
 
   void updateSettings(void Function(AppSettings s) fn) {
     fn(settings);
-    changed(reindex: true);
+    // Los ajustes no cambian los grupos ni el orden: no hace falta rehacer
+    // todos los índices (era lo que dejaba la app parada al tocar una opción).
+    changed();
   }
 
   void setLastChannel(Channel c) {

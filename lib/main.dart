@@ -78,50 +78,84 @@ Future<void> main(List<String> args) async {
   );
 }
 
-class MiIptvApp extends StatelessWidget {
+class MiIptvApp extends StatefulWidget {
   const MiIptvApp({super.key});
 
   @override
+  State<MiIptvApp> createState() => _MiIptvAppState();
+}
+
+/// Solo se redibuja la app entera cuando cambia el aspecto (tema, color o
+/// tamaño de letra), no con cada cambio de canales, guía u opciones.
+class _MiIptvAppState extends State<MiIptvApp> {
+  late (String, int, double) _look = _currentLook();
+  ThemeData? _light;
+  ThemeData? _dark;
+  int? _themeSeed;
+
+  (String, int, double) _currentLook() {
+    final s = app.settings;
+    return (s.themeMode, s.seedColor, s.textScale);
+  }
+
+  void _onApp() {
+    final look = _currentLook();
+    if (look != _look) setState(() => _look = look);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    app.addListener(_onApp);
+  }
+
+  @override
+  void dispose() {
+    app.removeListener(_onApp);
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: app,
-      builder: (context, _) {
-        final s = app.settings;
-        final seed = Color(s.seedColor);
-        return MaterialApp(
-          title: 'Mi IPTV',
-          debugShowCheckedModeBanner: false,
-          navigatorKey: updater.navigatorKey,
-          scaffoldMessengerKey: updater.messengerKey,
-          locale: const Locale('es', 'ES'),
-          supportedLocales: const [Locale('es', 'ES'), Locale('es')],
-          localizationsDelegates: GlobalMaterialLocalizations.delegates,
-          themeMode: switch (s.themeMode) {
-            'light' => ThemeMode.light,
-            'dark' => ThemeMode.dark,
-            _ => ThemeMode.system,
-          },
-          theme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(seedColor: seed),
-            useMaterial3: true,
-          ),
-          darkTheme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: seed,
-              brightness: Brightness.dark,
-            ),
-            useMaterial3: true,
-          ),
-          builder: (context, child) {
-            final mq = MediaQuery.of(context);
-            return MediaQuery(
-              data: mq.copyWith(textScaler: TextScaler.linear(s.textScale)),
-              child: child!,
-            );
-          },
-          home: const HomePage(),
+    final (mode, seedValue, textScale) = _look;
+    if (_themeSeed != seedValue) {
+      final seed = Color(seedValue);
+      _light = ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: seed),
+        useMaterial3: true,
+      );
+      _dark = ThemeData(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: seed,
+          brightness: Brightness.dark,
+        ),
+        useMaterial3: true,
+      );
+      _themeSeed = seedValue;
+    }
+    return MaterialApp(
+      title: 'Mi IPTV',
+      debugShowCheckedModeBanner: false,
+      navigatorKey: updater.navigatorKey,
+      scaffoldMessengerKey: updater.messengerKey,
+      locale: const Locale('es', 'ES'),
+      supportedLocales: const [Locale('es', 'ES'), Locale('es')],
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
+      themeMode: switch (mode) {
+        'light' => ThemeMode.light,
+        'dark' => ThemeMode.dark,
+        _ => ThemeMode.system,
+      },
+      theme: _light,
+      darkTheme: _dark,
+      builder: (context, child) {
+        final mq = MediaQuery.of(context);
+        return MediaQuery(
+          data: mq.copyWith(textScaler: TextScaler.linear(textScale)),
+          child: child!,
         );
       },
+      home: const HomePage(),
     );
   }
 }

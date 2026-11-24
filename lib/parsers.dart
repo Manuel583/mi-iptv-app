@@ -384,13 +384,29 @@ List<Channel> parseXtreamSeriesInfo({
 
 /// Quita tildes y pasa a minúsculas para comparar y buscar.
 String normalizeText(String s) {
-  const from = 'áàäâãåéèëêíìïîóòöôõúùüûñçÁÀÄÂÃÅÉÈËÊÍÌÏÎÓÒÖÔÕÚÙÜÛÑÇ';
-  const to = 'aaaaaaeeeeiiiiooooouuuuncaaaaaaeeeeiiiiooooouuuunc';
-  final b = StringBuffer();
-  for (final r in s.runes) {
-    final ch = String.fromCharCode(r);
-    final i = from.indexOf(ch);
-    b.write(i >= 0 ? to[i] : ch);
+  final lower = s.toLowerCase();
+  // Camino rápido: sin letras especiales no hay nada que cambiar.
+  var plain = true;
+  for (var i = 0; i < lower.length; i++) {
+    if (lower.codeUnitAt(i) > 127) {
+      plain = false;
+      break;
+    }
   }
-  return b.toString().toLowerCase();
+  if (plain) return lower;
+  final units = List<int>.of(lower.codeUnits);
+  for (var i = 0; i < units.length; i++) {
+    final r = _accentMap[units[i]];
+    if (r != null) units[i] = r;
+  }
+  return String.fromCharCodes(units);
 }
+
+/// Letras con tilde (ya en minúscula) -> letra sin tilde.
+final Map<int, int> _accentMap = () {
+  const from = 'áàäâãåéèëêíìïîóòöôõúùüûñç';
+  const to = 'aaaaaaeeeeiiiiooooouuuunc';
+  return {
+    for (var i = 0; i < from.length; i++) from.codeUnitAt(i): to.codeUnitAt(i),
+  };
+}();

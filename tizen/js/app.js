@@ -896,8 +896,7 @@
         sub: 'Los canales y grupos que ocultaste en el móvil o el PC.',
         action: function () {
           store.settings.showHidden = !store.settings.showHidden;
-          store.save();
-          store.rebuild();
+          store.save(); // las listas ya miran este ajuste al mostrarse: no hace falta rehacerlas
           openSettings('hidden');
         }
       },

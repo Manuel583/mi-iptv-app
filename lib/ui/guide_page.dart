@@ -115,9 +115,7 @@ class _GuidePageState extends State<GuidePage> {
   List<Channel> _channels() {
     if (_filter == 'fav') return app.favoriteChannels();
     if (_filter == 'all') {
-      return app.allChannels
-          .where((c) => app.settings.showHidden || !app.isHidden(c))
-          .toList();
+      return app.visibleChannels();
     }
     if (_filter.startsWith('g:')) {
       return app.channelsInGroup(_filter.substring(2));
