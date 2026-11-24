@@ -1,9 +1,10 @@
 // Actualizar la app desde la propia app (Android y Windows).
 //
 // La app pregunta a GitHub cuál es la última versión publicada en "Releases".
-// Como el repositorio es privado, hace falta un permiso de lectura (token)
-// que el usuario pega en Ajustes. El token se guarda sólo en este aparato,
-// en un archivo aparte que NO se incluye en la copia de seguridad.
+// Si el repositorio es público no hace falta nada más. Si es privado, hace
+// falta un permiso de lectura (token) que el usuario pega en Ajustes. El token
+// se guarda sólo en este aparato, en un archivo aparte que NO se incluye en la
+// copia de seguridad.
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -145,7 +146,7 @@ class Updater extends ChangeNotifier {
   }
 
   Map<String, String> _headers(String token, {bool binary = false}) => {
-    'Authorization': 'Bearer $token',
+    if (token.isNotEmpty) 'Authorization': 'Bearer $token',
     'Accept': binary
         ? 'application/octet-stream'
         : 'application/vnd.github+json',
@@ -173,7 +174,23 @@ class Updater extends ChangeNotifier {
             'o esté mal copiado. Crea uno nuevo y pégalo otra vez.',
           );
         case 403:
+          if (token.isEmpty) {
+            throw UpdateError(
+              'GitHub ha recibido demasiadas consultas desde esta conexión. '
+              'Prueba dentro de un rato.',
+            );
+          }
+          throw UpdateError(
+            'El permiso de lectura no da acceso al repositorio de la app. '
+            'Revisa que elegiste "mi-iptv-app" y "Contents: Read-only".',
+          );
         case 404:
+          if (token.isEmpty) {
+            throw UpdateError(
+              'No se encuentra ninguna versión publicada. Si el repositorio '
+              'es privado, pega el permiso de lectura de GitHub (abajo).',
+            );
+          }
           throw UpdateError(
             'El permiso de lectura no da acceso al repositorio de la app. '
             'Revisa que elegiste "mi-iptv-app" y "Contents: Read-only".',
@@ -217,9 +234,6 @@ class Updater extends ChangeNotifier {
 
   /// Pregunta a GitHub por la última versión.
   Future<ReleaseInfo> check() async {
-    if (!hasToken) {
-      throw UpdateError('Primero pega el permiso de lectura de GitHub.');
-    }
     checking = true;
     notifyListeners();
     try {
@@ -237,7 +251,6 @@ class Updater extends ChangeNotifier {
   Future<void> checkOnStartup() async {
     if (!supported) return;
     await load();
-    if (!hasToken) return;
     final last = lastCheck;
     if (last != null && DateTime.now().difference(last).inHours < 20) return;
     try {

@@ -17,9 +17,7 @@ class UpdateSection extends StatelessWidget {
       builder: (context, _) {
         final r = updater.latest;
         final String status;
-        if (!updater.hasToken) {
-          status = 'Primero pega el permiso de lectura de GitHub (abajo)';
-        } else if (updater.checking) {
+        if (updater.checking) {
           status = 'Comprobando…';
         } else if (r != null && r.isNewer) {
           status = 'Hay una versión nueva: ${r.version}. Pulsa para instalarla';
@@ -50,16 +48,15 @@ class UpdateSection extends StatelessWidget {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : null,
-              enabled: updater.hasToken,
               onTap: () => updater.startUpdate(context),
             ),
             ListTile(
               leading: const Icon(Icons.key_outlined),
-              title: const Text('Permiso de lectura de GitHub'),
+              title: const Text('Permiso de lectura de GitHub (opcional)'),
               subtitle: Text(
                 updater.hasToken
                     ? 'Guardado sólo en este aparato. Pulsa para cambiarlo o quitarlo'
-                    : 'Necesario para descargar las versiones nuevas',
+                    : 'Sólo hace falta si el repositorio de la app es privado',
               ),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => _editToken(context),
