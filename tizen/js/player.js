@@ -8,6 +8,14 @@
     return !!(root.webapis && root.webapis.avplay);
   }
 
+  function isUhdTv() {
+    try {
+      var pi = root.webapis.productinfo;
+      if (pi && pi.isUdPanelSupported) return !!pi.isUdPanelSupported();
+    } catch (e) { /* sin permiso o modelo antiguo */ }
+    return true;
+  }
+
   function Player(opts) {
     this.onState = opts.onState || function () {};
     this.onError = opts.onError || function () {};
@@ -67,6 +75,11 @@
       av.setDisplayRect(0, 0, 1920, 1080);
       try { av.setDisplayMethod('PLAYER_DISPLAY_MODE_LETTER_BOX'); } catch (e4) { /* nada */ }
       try { av.setTimeoutForBuffering(20); } catch (e5) { /* nada */ }
+      // Sin esto la tele trata los canales 4K como si fueran HD y pueden
+      // ir a tirones o a menos calidad. Debe ir antes de prepare.
+      if (isUhdTv()) {
+        try { av.setStreamingProperty('SET_MODE_4K', 'TRUE'); } catch (e8) { /* modelos antiguos */ }
+      }
       av.setListener({
         onbufferingstart: function () { if (token === self._token) self.onState('loading'); },
         onbufferingcomplete: function () { if (token === self._token) self.onState('playing'); },
@@ -122,6 +135,43 @@
     } else if (this.paused) this.videoEl.pause();
     else this.videoEl.play();
     this.onState(this.paused ? 'paused' : 'playing');
+  };
+
+  /**
+   * Datos de la señal que llega (solo en el televisor):
+   * {width, height, fps, codec, bitrate, audio, buffering}.
+   */
+  Player.prototype.signalInfo = function () {
+    var out = { width: 0, height: 0, fps: 0, codec: '', bitrate: 0, audio: '' };
+    if (!this.useAvplay) {
+      var v = this.videoEl;
+      out.width = v.videoWidth || 0;
+      out.height = v.videoHeight || 0;
+      return out;
+    }
+    var cur;
+    try { cur = root.webapis.avplay.getCurrentStreamInfo(); } catch (e) { return out; }
+    for (var i = 0; i < cur.length; i++) {
+      var info = {};
+      try { info = JSON.parse(cur[i].extra_info) || {}; } catch (e2) { info = {}; }
+      if (cur[i].type === 'VIDEO') {
+        out.width = Number(info.Width || info.width) || 0;
+        out.height = Number(info.Height || info.height) || 0;
+        out.codec = info.fourCC || '';
+        out.bitrate = Number(info.Bit_rate || info.bitrate) || 0;
+        for (var k in info) {
+          if (/fps|frame.?rate/i.test(k)) {
+            var f = parseFloat(info[k]);
+            // Algunos modelos lo dan en milésimas (25000 = 25 fps).
+            if (f > 1000) f = f / 1000;
+            if (f > 0) out.fps = f;
+          }
+        }
+      } else if (cur[i].type === 'AUDIO') {
+        out.audio = (info.fourCC || '') + (info.channels ? ' | ' + info.channels + ' canales' : '');
+      }
+    }
+    return out;
   };
 
   Player.prototype.stop = function () {
