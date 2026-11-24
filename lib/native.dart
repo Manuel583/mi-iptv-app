@@ -115,4 +115,18 @@ class NativeBridge {
 
   /// Abre el aviso de Android para quitar el ahorro de batería a la app.
   static Future<void> askBatteryExemption() => _call('askBatteryExemption');
+
+  /// Hercios actuales de la pantalla y los que admite: {hz, modes}.
+  static Future<Map<String, dynamic>> displayInfo() async {
+    final m = await _call<Map>('displayInfo');
+    return m == null ? {} : m.cast<String, dynamic>();
+  }
+
+  /// Pide a Android el modo de pantalla que encaja con [fps]. Devuelve
+  /// los hercios elegidos o 0 si ninguno encaja.
+  static Future<double> matchFrameRate(double fps) async =>
+      (await _call<double>('matchFrameRate', {'fps': fps})) ?? 0;
+
+  /// Deja que Android vuelva a elegir los hercios por su cuenta.
+  static Future<void> resetFrameRate() => _call('resetFrameRate');
 }

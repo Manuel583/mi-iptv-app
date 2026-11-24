@@ -17,7 +17,9 @@ import '../models.dart';
 import '../native.dart';
 import '../recordings.dart';
 import 'cast_sheet.dart';
+import '../display_rate.dart';
 import 'common.dart';
+import 'stats_overlay.dart';
 import 'live_captions.dart';
 import 'mosaic_page.dart';
 
@@ -225,10 +227,30 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
   );
   late final VideoController _video = VideoController(
     _player,
-    configuration: VideoControllerConfiguration(
-      enableHardwareAcceleration: app.settings.hardwareDecoding,
-    ),
+    configuration: _videoConfig(),
   );
+
+  /// En Android, con la decodificación directa el chip de vídeo pinta cada
+  /// fotograma sin copiarlo: es lo que hace falta para 4K y 8K a 60 fps.
+  static VideoControllerConfiguration _videoConfig() {
+    final s = app.settings;
+    if (_isAndroid && s.hardwareDecoding && s.directDecoding) {
+      return const VideoControllerConfiguration(
+        vo: 'mediacodec_embed',
+        hwdec: 'mediacodec',
+        enableHardwareAcceleration: true,
+      );
+    }
+    return VideoControllerConfiguration(
+      enableHardwareAcceleration: s.hardwareDecoding,
+    );
+  }
+
+  // FPS, hercios y señal
+  late final PlaybackStats _stats = PlaybackStats(_player);
+  double _matchedFor = 0;
+  double? _matchedHz;
+  int _outW = 0, _outH = 0;
 
   late int _index = widget.initialIndex.clamp(0, widget.channels.length - 1);
   Channel get _channel => widget.channels[_index];
@@ -334,7 +356,12 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
       _player.stream.track.listen((_) {
         if (mounted) setState(() {});
       }),
+      _player.stream.videoParams.listen(_fitRenderSize),
     ]);
+    if (app.settings.showStats || app.settings.matchRefreshRate) {
+      _stats.addListener(_onStats);
+      _stats.start();
+    }
     NativeBridge.inPip.addListener(_onPipChanged);
     NativeBridge.onStopRequested = _stopFromNotification;
     if (_isAndroid) {
@@ -369,6 +396,9 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
     _reconnectTimer?.cancel();
     _watchdog?.cancel();
     _cacheTimer?.cancel();
+    _stats.removeListener(_onStats);
+    _stats.dispose();
+    if (_matchedFor > 0) DisplayRate.reset();
     _saveResume();
     if (_recording) {
       final files = List.of(_recFiles);
@@ -485,6 +515,41 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
     if (_duration > Duration.zero) {
       ResumeStore.set(_channel.url, _player.state.position, _duration);
     }
+  }
+
+  /// Cuando los fps del vídeo se conocen, pone la pantalla a los hercios
+  /// que mejor encajan (si está activado en Ajustes).
+  Future<void> _onStats() async {
+    if (!app.settings.matchRefreshRate || _cast != null) return;
+    final fps = _stats.fps;
+    if (fps < 10 || (fps - _matchedFor).abs() < 0.01) return;
+    // Si ya va bien con los hercios actuales, no se toca nada.
+    final now = syncFor(fps, _stats.hz).quality;
+    _matchedFor = fps;
+    if (now == SyncQuality.perfect) return;
+    final hz = await DisplayRate.match(fps);
+    if (!mounted) return;
+    setState(() => _matchedHz = hz > 0 ? hz : null);
+  }
+
+  /// En Windows la imagen se pinta a su tamaño original. Un 8K en un
+  /// monitor 4K o 1080p obliga a mover cuatro o dieciséis veces más
+  /// píxeles de los que se ven, y eso da tirones. Se limita al tamaño
+  /// de la pantalla.
+  void _fitRenderSize(VideoParams v) {
+    if (!_isWindows) return;
+    final w = v.dw ?? v.w ?? 0, h = v.dh ?? v.h ?? 0;
+    if (w <= 0 || h <= 0) return;
+    final views = WidgetsBinding.instance.platformDispatcher.views;
+    final screen = views.isEmpty ? null : views.first.display.size;
+    if (screen == null || screen.width < 100) return;
+    final scale = math.min(1.0, math.min(screen.width / w, screen.height / h));
+    final ow = scale >= 1 ? 0 : (w * scale).round();
+    final oh = scale >= 1 ? 0 : (h * scale).round();
+    if (ow == _outW && oh == _outH) return;
+    _outW = ow;
+    _outH = oh;
+    _video.setSize(width: ow == 0 ? null : ow, height: oh == 0 ? null : oh);
   }
 
   Future<void> _pollCache() async {
@@ -1549,6 +1614,18 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
               child: _RecBadge(since: _recSince!),
             ),
           if (_status != null) Center(child: _StatusBox(text: _status!)),
+          if (app.settings.showStats && _cast == null)
+            Positioned(
+              left: 12,
+              top:
+                  MediaQuery.paddingOf(context).top +
+                  (_banner || _controls ? 72 : 12),
+              child: StatsOverlay(
+                stats: _stats,
+                liveDelay: () => _delay,
+                matchedHz: _matchedHz,
+              ),
+            ),
           if (liveCaptionsPlatform)
             Positioned.fill(
               child: LiveCaptionOverlay(controlsVisible: _controls),

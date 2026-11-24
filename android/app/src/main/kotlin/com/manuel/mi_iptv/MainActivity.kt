@@ -69,6 +69,13 @@ class MainActivity : FlutterActivity() {
                     captions?.stop()
                     result.success(null)
                 }
+                "displayInfo" -> result.success(displayInfo())
+                "matchFrameRate" ->
+                    result.success(matchFrameRate(call.argument<Double>("fps") ?: 0.0))
+                "resetFrameRate" -> {
+                    setPreferredMode(0)
+                    result.success(null)
+                }
                 else -> if (!RecorderBridge.handle(this, call, result)) result.notImplemented()
             }
         }
@@ -93,6 +100,72 @@ class MainActivity : FlutterActivity() {
         stopPlaybackService()
         if (instance == this) instance = null
         super.onDestroy()
+    }
+
+    // ---------------------------------------------- Hercios de la pantalla
+
+    @Suppress("DEPRECATION")
+    private fun currentDisplay(): android.view.Display? =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) display else windowManager.defaultDisplay
+
+    /** Hercios actuales y modos que admite la pantalla. */
+    private fun displayInfo(): Map<String, Any> {
+        val d = currentDisplay() ?: return emptyMap()
+        val info = HashMap<String, Any>()
+        info["hz"] = d.refreshRate.toDouble()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val cur = d.mode
+            info["modeId"] = cur.modeId
+            info["width"] = cur.physicalWidth
+            info["height"] = cur.physicalHeight
+            info["modes"] = d.supportedModes
+                .filter { it.physicalWidth == cur.physicalWidth && it.physicalHeight == cur.physicalHeight }
+                .map { it.refreshRate.toDouble() }
+                .distinct()
+        }
+        return info
+    }
+
+    /** Elige el modo de pantalla cuyos hercios encajan mejor con los fps del vídeo. */
+    private fun matchFrameRate(fps: Double): Double {
+        if (fps < 10 || Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return 0.0
+        val d = currentDisplay() ?: return 0.0
+        val cur = d.mode
+        var best: android.view.Display.Mode? = null
+        var bestErr = Double.MAX_VALUE
+        for (m in d.supportedModes) {
+            if (m.physicalWidth != cur.physicalWidth || m.physicalHeight != cur.physicalHeight) continue
+            val ratio = m.refreshRate / fps
+            val n = Math.round(ratio)
+            if (n < 1) continue
+            val err = Math.abs(ratio - n) / n
+            // Empate: se queda con el modo actual o con el de menos hercios (gasta menos batería).
+            if (err < bestErr - 0.0005 ||
+                (Math.abs(err - bestErr) <= 0.0005 && best != null &&
+                    (m.modeId == cur.modeId || (best.modeId != cur.modeId && m.refreshRate < best.refreshRate)))
+            ) {
+                best = m
+                bestErr = err
+            }
+        }
+        if (best == null || bestErr > 0.01) {
+            setPreferredMode(0)
+            return 0.0
+        }
+        setPreferredMode(best.modeId)
+        return best.refreshRate.toDouble()
+    }
+
+    private fun setPreferredMode(id: Int) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
+        try {
+            val attrs = window.attributes
+            if (attrs.preferredDisplayModeId != id) {
+                attrs.preferredDisplayModeId = id
+                window.attributes = attrs
+            }
+        } catch (_: Exception) {
+        }
     }
 
     fun requestStopFromNotification() {

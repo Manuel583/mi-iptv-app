@@ -201,6 +201,45 @@ class SettingsPage extends StatelessWidget {
               onChanged: (v) =>
                   app.updateSettings((s) => s.hardwareDecoding = v),
             ),
+            if (_isAndroid)
+              SwitchListTile(
+                secondary: const Icon(Icons.speed),
+                title: const Text('Decodificación directa (4K y 8K fluidos)'),
+                subtitle: const Text(
+                  'El chip de vídeo pinta la imagen sin copias. Con ella '
+                  'activada no se ven los subtítulos que trae la emisión '
+                  '(los subtítulos en directo sí). Se aplica al abrir un canal',
+                ),
+                value: s.directDecoding && s.hardwareDecoding,
+                onChanged: s.hardwareDecoding
+                    ? (v) => app.updateSettings((s) => s.directDecoding = v)
+                    : null,
+              ),
+            SwitchListTile(
+              secondary: const Icon(Icons.monitor_heart_outlined),
+              title: const Text('Mostrar FPS y hercios en una esquina'),
+              subtitle: const Text(
+                'Fotogramas del vídeo, hercios de la pantalla, si van '
+                'coordinados y datos de la señal. Púlsala para ver más',
+              ),
+              value: s.showStats,
+              onChanged: (v) => app.updateSettings((s) => s.showStats = v),
+            ),
+            SwitchListTile(
+              secondary: const Icon(Icons.sync_alt),
+              title: const Text('Igualar los hercios de la pantalla al vídeo'),
+              subtitle: Text(
+                _isAndroid
+                    ? 'Elige la frecuencia de la pantalla que mejor encaja con '
+                          'el vídeo para evitar tirones'
+                    : 'Cambia el monitor principal a la frecuencia que encaja '
+                          'con el vídeo (por ejemplo 50 Hz para 25 o 50 fps) '
+                          'mientras ves un canal. Al salir se deja como estaba',
+              ),
+              value: s.matchRefreshRate,
+              onChanged: (v) =>
+                  app.updateSettings((s) => s.matchRefreshRate = v),
+            ),
             ListTile(
               leading: const Icon(Icons.history),
               title: const Text('Retroceder en directo'),

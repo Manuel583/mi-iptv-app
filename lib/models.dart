@@ -280,6 +280,10 @@ class AppSettings {
   bool pipOnLeave = true;
   bool backgroundAudio = true;
   bool hardwareDecoding = true;
+  bool showStats = false; // esquina con fps, hercios y señal
+  bool matchRefreshRate = true; // igualar los hercios de la pantalla al vídeo
+  bool directDecoding =
+      true; // Android: el decodificador pinta directo (4K/8K fluido)
   int timeshiftMinutes = 15; // 0 = desactivado
   int recordBeforeMinutes = 2; // margen al grabar desde la guía
   int recordAfterMinutes = 5;
@@ -302,6 +306,9 @@ class AppSettings {
     'pipOnLeave': pipOnLeave,
     'backgroundAudio': backgroundAudio,
     'hardwareDecoding': hardwareDecoding,
+    'showStats': showStats,
+    'matchRefreshRate': matchRefreshRate,
+    'directDecoding': directDecoding,
     'timeshiftMinutes': timeshiftMinutes,
     'recordBeforeMinutes': recordBeforeMinutes,
     'recordAfterMinutes': recordAfterMinutes,
@@ -327,6 +334,9 @@ class AppSettings {
     s.pipOnLeave = (j['pipOnLeave'] ?? true) as bool;
     s.backgroundAudio = (j['backgroundAudio'] ?? true) as bool;
     s.hardwareDecoding = (j['hardwareDecoding'] ?? true) as bool;
+    s.showStats = (j['showStats'] ?? false) as bool;
+    s.matchRefreshRate = (j['matchRefreshRate'] ?? true) as bool;
+    s.directDecoding = (j['directDecoding'] ?? true) as bool;
     s.timeshiftMinutes = (j['timeshiftMinutes'] ?? 15) as int;
     s.recordBeforeMinutes = (j['recordBeforeMinutes'] ?? 2) as int;
     s.recordAfterMinutes = (j['recordAfterMinutes'] ?? 5) as int;

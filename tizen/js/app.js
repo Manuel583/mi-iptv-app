@@ -453,8 +453,36 @@
 
   // ------------------------------------------------------------ Reproducción
 
+  // Esquina con FPS y datos de la señal.
+  var statsTimer = null;
+  function resName(h) {
+    if (h >= 4000) return '8K';
+    if (h >= 2000) return '4K';
+    if (h >= 1000) return '1080p';
+    if (h >= 700) return '720p';
+    return h > 0 ? h + 'p' : '';
+  }
+  function updateStats() {
+    var el = $('stats');
+    var on = screen === 'player' && store.settings.showStats;
+    el.classList.toggle('hidden', !on);
+    if (!on) return;
+    var s = player.signalInfo();
+    var fps = s.fps ? (Math.round(s.fps * 100) / 100) + ' fps' : '? fps';
+    var res = resName(s.height);
+    var html = '<b>' + fps + (res ? ' | ' + res : '') + '</b>';
+    if (s.width) html += '<br><span class="dim">Imagen ' + s.width + 'x' + s.height + (s.codec ? ' | ' + s.codec : '') + '</span>';
+    if (s.bitrate) html += '<br><span class="dim">Señal ' + (Math.round(s.bitrate / 100000) / 10) + ' Mbit/s</span>';
+    if (s.audio) html += '<br><span class="dim">Sonido ' + s.audio + '</span>';
+    html += '<br><span class="dim">La tele ajusta sola sus hercios al vídeo</span>';
+    el.innerHTML = html;
+  }
+
   function show(name) {
     screen = name;
+    if (name === 'player' && !statsTimer) statsTimer = setInterval(updateStats, 1000);
+    if (name !== 'player' && statsTimer) { clearInterval(statsTimer); statsTimer = null; }
+    updateStats();
     $('screen-browse').classList.toggle('hidden', name !== 'browse');
     $('screen-player').classList.toggle('hidden', name !== 'player');
     $('screen-form').classList.toggle('hidden', name !== 'form');
@@ -871,6 +899,15 @@
           store.save();
           store.rebuild();
           openSettings('hidden');
+        }
+      },
+      {
+        type: 'item', id: 'stats', label: 'Mostrar FPS y datos de la señal en una esquina: ' + (store.settings.showStats ? 'Sí' : 'No'),
+        sub: 'Fotogramas por segundo, resolución y calidad del canal que estás viendo.',
+        action: function () {
+          store.settings.showStats = !store.settings.showStats;
+          store.save();
+          openSettings('stats');
         }
       },
       { type: 'text', html: '<b>Mis listas</b> (pulsa OK sobre una para actualizarla, desactivarla o borrarla)' }
